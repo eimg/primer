@@ -42,6 +42,25 @@ Every arrow should be inspectable.
 
 The first release is intentionally focused on a small number of sources and a locally manageable operating model, establishing a strong base for broader connectors and operating environments.
 
+## Product surfaces
+
+Primer should expose one knowledge pipeline through progressively richer surfaces rather than build separate products around the same behavior.
+
+### CLI first
+
+The first surface is a first-class CLI for operators and developers. It proves ingestion, inspection, identity-aware retrieval, evaluation, cited answers, synchronization, and machine-readable traces before visual presentation can conceal weak behavior. Human-readable output and stable JSON output are both product contracts.
+
+### Web second
+
+After the CLI pipeline is credible, a local web application will reuse the same application services. Its integrated surfaces are:
+
+- chat with citations and expandable retrieval evidence;
+- local account and access management;
+- content registration, ingestion, inspection, synchronization, and removal; and
+- evaluation and trace inspection.
+
+The web application is part of the intended product, not a disposable test harness. Primer still remains more than a chat box: the content, access, retrieval, and trace surfaces are equally consequential.
+
 ## Principles
 
 ### Evidence before eloquence
@@ -50,7 +69,7 @@ Retrieval quality, authorization, provenance, and citation support matter more t
 
 ### Native sources remain authoritative
 
-Primer does not become the editing home for Slack, Git, or documents. Its index is a replaceable representation optimized for discovery and retrieval.
+Primer does not become the editing home for Slack or documents. Its index is a replaceable representation optimized for discovery and retrieval. Repository source code remains outside that index: Primer supplies organizational context, while an orchestrator harness verifies current code when implementation work begins.
 
 ### Source-aware before source-agnostic
 
@@ -72,6 +91,10 @@ Primer should be locally runnable and understandable from end to end. Operationa
 
 Authority, freshness, supersession, scope, and representative questions are configurable policy. They are not delegated invisibly to an embedding model or answer model.
 
+### Deterministic workflow before agent autonomy
+
+Source processing, authorization, retrieval, ranking, evidence construction, and citation validation use explicit application control flow. Model or agent SDKs do not own these trust boundaries. Agent behavior enters only when a future capability genuinely requires a bounded multi-step tool loop.
+
 ## The user outcome
 
 After using Primer, a user or operator should be able to determine:
@@ -87,3 +110,10 @@ After using Primer, a user or operator should be able to determine:
 ## Long-term direction
 
 Primer may grow into reusable connector, retrieval, evaluation, and tool interfaces supporting broader organizational use. That extensibility must grow out of a trustworthy core. The first release should not become a universal connector platform or autonomous research agent before the evidence pipeline is proven.
+
+Within the Acme testbed, two later relationships are planned:
+
+- Acme Issues can become an authoritative source of issue descriptions, comments, labels, status history, and Helix run lineage. Primer derives searchable records but never becomes the issue editor.
+- Helix can request bounded, authorized evidence from Primer when planning or implementation needs internal knowledge. Helix keeps ownership of orchestration and reasoning; Primer keeps ownership of evidence construction and provenance.
+
+The first interoperable contract should be stable JSON from the CLI, followed by an equivalent HTTP API in the web phase. Direct database coupling is prohibited. MCP remains optional and should be introduced only when multiple independent consumers or an ownership, credential, policy, or deployment boundary justifies it.

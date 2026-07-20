@@ -13,7 +13,7 @@ Both products use a small shared platform surface. Similar terms such as `accoun
 
 This corpus is designed for Primer's initial backfill and retrieval groundwork. It should support source-aware parsing, stable source identity, lexical and semantic retrieval, project scope, authorization filtering, authority/freshness adjustments, conflict visibility, and abstention.
 
-The fixture does not yet test polling, webhooks, interval updates, reconciliation, or continuous synchronization. A later snapshot may be derived from this one, but the current corpus is frozen as `acme-v0.1`.
+The fixture does not yet test polling, webhooks, interval updates, reconciliation, or continuous synchronization. The source corpus remains unchanged from `acme-v0.1`; the active `acme-v0.3` snapshot contains scoped evaluation corrections from the first live baselines.
 
 ## Dataset map
 
@@ -23,12 +23,12 @@ ground-truth/          canonical claims and the six-week event ledger
 sources/slack/         Slack-export-shaped JSON
 sources/email/         RFC 5322-style email messages; collection only for now
 sources/markdown/      wiki and runbook documents
-sources/git/           two read-only knowledge repositories
+sources/git/           two read-only code-context fixtures for Pi/Helix evaluation
 evaluation/            retrieval cases with expected and forbidden evidence
 manifest.json          fixture identity and source inventory
 ```
 
-Each Git fixture carries its synthetic history in `.primer/history.bundle` so the history survives inside the outer Primer repository. From the Primer root, run `./scripts/restore-git-fixtures.sh` after a fresh clone to reconstruct the nested repositories before Git ingestion or history-sensitive evaluation.
+Each Git fixture carries its synthetic history in `.primer/history.bundle` so the history survives inside the outer Primer repository. From the Primer root, run `./scripts/restore-git-fixtures.sh` after a fresh clone to reconstruct the nested repositories before a Pi code-context simulation or Helix integration evaluation. Primer does not ingest their source-code bodies.
 
 ## Authority model
 
@@ -44,4 +44,4 @@ The dataset deliberately contains disagreement. Canonical truth is not inferred 
 
 ## Initial ingest scope
 
-The first Primer slice should ingest Markdown, Slack-like JSON, and Git. Email is included so the fictional history remains coherent and so a later source family has prepared data, but email ingestion is not required for the first retrieval slice.
+The first Primer slice ingests Markdown and Slack-like JSON. Git remains a separate code-context fixture for the orchestrator harness, and email remains prepared for a later organizational-source connector.

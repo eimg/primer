@@ -6,7 +6,7 @@ Acme content is synthetic. No real employee messages, customer records, resumes,
 
 - Slack source layout follows Slack's documented JSON export concepts: workspace-level users and conversations plus dated message files per conversation.
 - Email messages use ordinary RFC 5322-style headers and `.eml` files.
-- Git sources are original, deliberately small TypeScript fixtures with locally generated commit history.
+- Git code-context fixtures are original, deliberately small TypeScript repositories with locally generated commit history.
 - Markdown documents are original fixtures with Primer-specific provenance and access frontmatter.
 
 ## Public material considered but not copied
@@ -18,4 +18,3 @@ Acme content is synthetic. No real employee messages, customer records, resumes,
 ## Generation discipline
 
 Important facts originate in `ground-truth/events.json` and `ground-truth/claims.json`, then appear with controlled variation across ingestible sources. Generated filler must not introduce new product behavior unless the truth ledger is updated first and evaluation implications are reviewed.
-

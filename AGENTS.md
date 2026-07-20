@@ -1,6 +1,6 @@
 # Primer agent guide
 
-Primer is in a documentation and product-definition stage. Do not scaffold or implement the system unless the user explicitly moves the project into implementation.
+Primer is implementing its CLI-first plan. Phases 1 through 3 are complete: Markdown and Slack retrieval, bounded policy ranking, authorization regression coverage, `primer.context.v1`, grounded answers, citation repair, and persisted answer evaluation are implemented. The `acme-v0.1` full and later targeted live runs are preserved; `acme-v0.3` is the active verified fixture. Phase 4 completes the CLI source lifecycle and trust controls. Primer does not index source-code bodies; Helix/Pi owns real repository exploration. Follow the delivery gates in `docs/plan.md`; do not skip to the web or cross-project integration phases.
 
 This file is an entrypoint, not the full specification.
 
@@ -8,12 +8,12 @@ This file is an entrypoint, not the full specification.
 
 | Project | Local path | Responsibility |
 |---|---|---|
-| Primer | `~/Desktop/acme/primer` | Knowledge product and fictional Acme evidence corpus; not currently part of the runtime loop. |
+| Primer | `~/Desktop/acme/primer` | Knowledge product and fictional Acme evidence corpus; currently separate from the runtime loop. |
 | Helix | `~/Desktop/acme/helix` | Agent workflow control plane that receives work and orchestrates changes. |
 | Acme Issues | `~/Desktop/acme/acme-issues` | Local issue tracker and webhook harness that triggers Helix and receives callbacks. |
 | Acme Todo | `~/Desktop/acme/acme-todo` | Disposable target application used for agent implementation and verification. |
 
-The current local runtime flow is Acme Issues → Helix → Acme Todo, followed by a Helix completion callback to Acme Issues. Primer shares the fictional Acme context but remains a separate knowledge-product and dataset effort.
+The current local runtime flow is Acme Issues → Helix → Acme Todo, followed by a Helix completion callback to Acme Issues. Primer remains separate while its CLI and web product are built. Later, Acme Issues may be a read-only authoritative source for Primer, and Helix may consume bounded Primer evidence through a stable query boundary.
 
 ## Read first
 
@@ -35,12 +35,37 @@ The current local runtime flow is Acme Issues → Helix → Acme Todo, followed 
 - Exact search and semantic search are complementary; neither is treated as truth.
 - Domain rules, source authority, freshness, and supersession remain explicit.
 - MCP and live third-party integrations are optional boundaries, not MVP foundations.
+- The CLI is the first product surface and owns no duplicate business logic; the later API and web UI reuse the same application services.
+- OpenRouter is the initial provider for chat and embeddings. Use the official OpenRouter TypeScript SDK for embeddings and Vercel AI SDK for grounded chat; streaming remains deferred. Pi is reserved for a later server-side, read-only UI simulation; Helix owns Pi in real implementation workflows.
+- Primer supplies bounded organizational context and non-authoritative code leads. It does not duplicate Helix's current-code exploration or automatically index Pi output.
+- The current implementation remains index-first. Future source-native discovery is an extension path, not current scope, and may never bypass authorization, normalization, provenance, or evidence construction.
+- Acme Issues remains authoritative for issues, comments, and run lineage. Primer may index it later but does not mutate it.
+- Helix remains responsible for workflow orchestration. Primer may later supply evidence but does not absorb Helix's agent loop.
 - Product direction, planned work, and implemented behavior must be labeled separately.
 
 ## Change discipline
 
 - Preserve `modern-knowledge-base.md` as the original concept unless explicitly asked to revise it.
 - Record consequential choices and reversals in `docs/decisions.md`.
-- Keep planning documents technology-neutral until the corresponding decision gate is resolved.
+- Keep unresolved implementation details technology-neutral; do not reopen settled decisions without recording the reversal and consequence.
 - Do not describe planned behavior as shipped behavior.
 - Favor a small, inspectable vertical slice over breadth of connectors or infrastructure.
+- Keep CLI text output useful for people and add stable `--json` output where the contract will later serve the API or another consumer.
+- Do not let provider SDK types spread through source, retrieval, authorization, or evaluation modules; contain them at the model adapter boundary.
+
+## Current implementation map
+
+```text
+src/cli.ts          CLI adapter and stable JSON surfaces
+src/services.ts     application use cases, retrieval, fusion, evidence, evaluation
+src/database.ts     SQLite schema, record writer, FTS, traces, evaluation runs
+src/connectors/     independent acquisition contracts, registry, and local connectors
+src/markdown.ts     frontmatter and heading-aware Markdown processor
+src/slack.ts        deterministic Slack thread processor
+src/fixture.ts      Acme fixture and stable-identity validator
+src/embeddings.ts   deterministic test adapter and official OpenRouter SDK adapter
+src/types.ts        domain and retrieval contracts
+test/               fixture, connector, ingestion, retrieval, authorization, evaluation, CLI tests
+```
+
+Use `node --import tsx` rather than the `tsx` executable when the environment forbids tsx's IPC listener. Normal verification is `npm run typecheck`, `npm test`, and `npm run build`.

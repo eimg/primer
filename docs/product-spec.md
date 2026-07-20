@@ -1,12 +1,24 @@
 # Primer MVP product specification
 
-**Status:** Draft product contract. No implementation exists.
+**Status:** Active product contract. Phase 1 retrieval, Phase 2 contrasting sources, policy, authorization, and context packs, and Phase 3 grounded CLI answers with persisted evaluation are implemented and live-verified. Complete source lifecycle work and web capabilities remain planned.
 
 ## Objective
 
 Build a focused first release that turns heterogeneous source material into permission-checked evidence and cited answers, while letting users inspect how consequential decisions were made.
 
-The MVP succeeds when people can obtain useful answers, verify their evidence, and test the pipeline's trust boundaries. A polished chat surface alone is not the success criterion.
+The MVP succeeds when people can obtain useful answers, verify their evidence, and test the pipeline's trust boundaries first through the CLI and then through an integrated web application. A polished chat surface alone is not the success criterion.
+
+## Delivery model
+
+Primer has two ordered product milestones over one application core.
+
+### CLI milestone
+
+The first milestone proves the complete pipeline without a web server or browser dependency. It provides task-oriented commands for configuration, identities, sources, retrieval, answering, traces, synchronization, and evaluation. Commands that expose reusable results provide stable JSON output in addition to readable terminal output.
+
+### Web milestone
+
+After the CLI exit gate passes, a local HTTP API and web application adapt the same application services. The web milestone adds integrated chat, account management, content management, retrieval inspection, synchronization, and evaluation surfaces. It must not introduce a parallel ingestion or retrieval implementation.
 
 ## Initial operating scenario
 
@@ -16,7 +28,8 @@ The initial ingestible source set is:
 
 1. Markdown documents, split by heading hierarchy.
 2. Slack-like exported JSON, normalized at thread level.
-3. Two local Git repositories, one per project, split by meaningful code structure through the same Git source-family contract.
+
+Two local Git repositories remain fixture targets for later harness simulation and Helix integration evaluation. Primer does not index their source-code bodies. In real workflows, Primer supplies authorized organizational context and Helix/Pi verifies the current checkout.
 
 The MVP uses packaged or locally selected sources. Live OAuth connectors are deferred until the core source, retrieval, and authorization contracts are proven.
 
@@ -68,16 +81,35 @@ The operator changes an approved local source, runs synchronization, and sees:
 
 The same question is asked under two identities, and the resulting authorized evidence and answers differ without exposing restricted content.
 
+### 6. Operate through the CLI
+
+The operator can:
+
+- initialize and inspect local configuration;
+- list and inspect fixture identities and their effective access;
+- register, ingest, inspect, synchronize, and remove supported content sources;
+- retrieve evidence or ask a cited question under a selected identity and project scope;
+- inspect a saved trace; and
+- run the fixed evaluation suite with human-readable or JSON output.
+- emit a bounded, versioned initial-context pack for a future orchestrator consumer, with code paths and symbols explicitly labeled as unverified leads.
+
+### 7. Manage local accounts and content in the web application
+
+The web operator can manage local accounts, group/project membership, active sessions, registered content sources, and indexing actions. Account management proves the local authorization model; it does not claim external identity federation. Content management changes Primer's derived representation and source registration, not the authoritative source content.
+
 ## Functional requirements
 
 ### Source processing
 
-- A connector emits a common source-object envelope with stable identity, provenance, timestamps, metadata, and access rules.
+- A connector emits a common acquisition envelope containing connector identity, source family, native reference, raw content, and connector metadata.
+- A registered source-family processor converts acquisition items into canonical source objects with stable identity, provenance, timestamps, metadata, access rules, records, and visible decisions.
+- Connectors do not embed, rank, or write retrieval storage directly.
 - Processing is selected by source type.
 - Normalization output is distinguishable from authoritative source content.
 - Chunk identity is stable enough for idempotent re-synchronization.
 - Selective indexing records both accepted and rejected decisions.
 - Code blocks, tables, heading paths, conversation resolution state, and exact identifiers are preserved when relevant.
+- The MVP is index-first. A future connector may additionally expose source-native discovery, but discovered material must become authorized, normalized, attributable evidence before it can support an answer.
 
 ### Index and retrieval
 
@@ -93,6 +125,7 @@ The same question is asked under two identities, and the resulting authorized ev
 - The answer model receives only the question, authorized evidence records, and answer rules.
 - Every citation refers to a supplied evidence identifier.
 - The system validates citation existence and reports unsupported or uncited material claims.
+- One bounded repair request may correct invalid citation formatting or uncited factual paragraphs; repeated failure remains visible.
 - Conflicting evidence remains visible.
 - The system can abstain and state what evidence is missing.
 
@@ -102,20 +135,50 @@ The same question is asked under two identities, and the resulting authorized ev
 - The interface distinguishes original content, derived normalization, retrieval scores, policy adjustments, and generated answer text.
 - A user can account for the major ranking steps from displayed information.
 
-## MVP screens
+### Model provider
 
-The conceptual screens are:
+- OpenRouter is used for embeddings through its official TypeScript SDK; grounded chat uses Vercel AI SDK with OpenRouter, with streaming deferred until a CLI or web journey justifies it.
+- Pi is reserved for a later server-side, read-only UI simulation of the orchestrator code-exploration handoff. Real repository exploration remains owned by Helix/Pi.
+- Chat and embedding models are configured independently.
+- Provider credentials remain outside source control and browser code.
+- Record embeddings retain model and configuration identity; incompatible vector spaces are not mixed.
+- Model calls record safe usage, timing, returned model identity, and relevant configuration in the trace.
+- Automated tests can replace both model boundaries with deterministic fakes.
 
-1. **Sources** — originals, transformations, records, and rejection decisions.
-2. **Retrieval** — candidates, filters, fusion, adjustments, and final evidence.
-3. **Answer** — cited claims, evidence, conflicts, and uncertainty.
-4. **Synchronization** — source versions, checksums, record changes, and re-index action.
+### CLI contracts
 
-Navigation and visual layout remain open. These are capability groupings, not a commitment to four routes.
+- Command handlers call application services rather than own domain behavior.
+- Reusable command results support stable `--json` output with explicit schema versions where appropriate.
+- Failures have non-zero exit status and distinguish configuration, source-processing, authorization, provider, and evaluation errors.
+- The CLI can complete the full MVP pipeline before the web phase begins.
+
+## Web application surfaces
+
+The later web milestone includes:
+
+1. **Chat** — conversation, cited answer, conflicts, uncertainty, and expandable evidence trace.
+2. **Accounts** — local profiles, active identity, group/project membership, and effective access.
+3. **Content** — registered sources, originals, transformations, records, rejection decisions, synchronization, and removal.
+4. **Retrieval and traces** — candidates, authorization boundary, filters, fusion, adjustments, final evidence, model input, and timing.
+5. **Evaluation** — fixed cases, stage metrics, failures, and configuration comparison.
+
+Navigation and visual layout remain implementation details. These are capability groupings, not a commitment to five isolated routes.
+
+## Future ecosystem boundaries
+
+### Acme Issues as a source
+
+After the CLI and web milestones, a dedicated read-only adapter may ingest issue descriptions, comments, labels, status history, and Helix run lineage from Acme Issues. Acme Issues remains authoritative. Primer does not edit issues, comments, status, or webhook state.
+
+### Helix as a consumer
+
+Helix may later request a bounded initial-context pack using an actor, question, project/scope, and result limit. The response retains evidence identifiers, excerpts, provenance, freshness, retrieval reasons, constraints, conflicts, and explicitly unverified code leads. Helix owns workflow orchestration and current-repository exploration through Pi; Primer owns organizational evidence construction. Direct database access is not an integration contract.
 
 ## Non-goals
 
 - Live Slack, Teams, GitHub, Drive, or OAuth integration in the first release.
+- Source-native or federated exploration for organizational sources in the initial CLI and web milestones.
+- Indexing repository source-code bodies as a Primer knowledge source.
 - External identity federation or full source-permission reconciliation in the first release.
 - A distributed worker, queue, or search-cluster architecture.
 - Continuous web crawling or autonomous knowledge creation.
@@ -123,6 +186,9 @@ Navigation and visual layout remain open. These are capability groupings, not a 
 - Training or fine-tuning a foundation model.
 - A no-code connector marketplace.
 - MCP as a required internal boundary.
+- Acme Issues ingestion during the initial CLI or web milestones.
+- Helix runtime integration during the initial CLI or web milestones.
+- Replacing Helix orchestration with a Primer agent.
 - Proving that generated summaries are authoritative.
 
 ## Acceptance criteria
@@ -138,8 +204,11 @@ The MVP is complete only when all of the following are verified with fixed evalu
 - at least one conflict is surfaced rather than silently resolved;
 - at least one question causes correct abstention;
 - one source edit causes a traceable incremental index change and a predictable retrieval change;
-- the evaluation suite reports retrieval, citation, permission, abstention, and stage-latency results.
+- the evaluation suite reports retrieval, citation, permission, abstention, and stage-latency results;
+- the complete pipeline is operable through the CLI before the web milestone begins;
+- reusable CLI results have stable JSON output consumed by contract tests;
+- the web application reuses the same application services and passes integrated chat, account, content, trace, and evaluation journeys.
 
-## Product questions still open
+## Implementation flexibility
 
-The initial domain, exact user flow, answer-model behavior, and stack are intentionally unresolved. They are tracked in [`decisions.md`](./decisions.md) and must be settled before scaffolding.
+The product direction, initial stack, provider boundary, source processors, access model, and phase order are settled in [`decisions.md`](./decisions.md). Exact command spelling, HTTP framework, React build tooling, visual layout, and concrete OpenRouter model IDs may be selected during their relevant phase as long as they preserve this contract.

@@ -1,6 +1,8 @@
 # Primer evaluation contract
 
-**Status:** Draft. The evaluation dataset must be designed before implementation.
+**Status:** Implemented CLI evaluation contract. The active evaluation dataset is frozen as `acme-v0.3`. Retrieval and answer evaluation are implemented as separate persisted run types. Historical runs remain comparable only against their original expectations: version 0.2 corrected case 003 to use project-scoped evidence, and version 0.3 narrows case 008 to the deletion and audit behavior asked by the question.
+
+The retrieval runner evaluates fourteen cases against indexed Markdown and Slack records and skips the code-context-only exact-symbol case. The answer runner evaluates the same eligible organizational-knowledge cases, persists model identity, answers, citations, expected-point coverage, permission results, abstention behavior, usage, and timing, and skips that code-only case. Git symbol locations are recorded separately as `expectedCodeContextRefs`; they are not Primer record expectations and are not scored by either runner. A later Pi simulation or Helix integration evaluation will verify them against a pinned checkout. Deterministic offline verification exercises the pipeline and contracts; it is not the live semantic-quality baseline.
 
 Primer must evaluate the evidence pipeline before evaluating prose quality. A fluent answer does not compensate for missing, unauthorized, stale, or unsupported evidence.
 
@@ -15,6 +17,7 @@ type EvaluationCase = {
   userId: string;
   projectId?: string;
   expectedRecordIds: string[];
+  expectedCodeContextRefs?: string[];
   forbiddenRecordIds?: string[];
   expectedAnswerPoints: string[];
   expectedConflictIds?: string[];
@@ -24,6 +27,10 @@ type EvaluationCase = {
 ```
 
 Expected record identity should be stable across unchanged synchronizations.
+
+`expectedCodeContextRefs` are unindexed repository targets for harness evaluation. They must remain distinct from Primer evidence, be verified against a specific repository revision, and never be presented as current code truth merely because an organizational source mentioned the path or symbol.
+
+Evaluation output must also record the dataset version, application version, processor and policy versions, storage schema version, embedding model/configuration, answer model/configuration, and whether model calls used deterministic fakes or live OpenRouter requests.
 
 ## Required case families
 
@@ -69,6 +76,10 @@ Authorization failures are release blockers, not quality trade-offs.
 
 Deterministic validation should cover evidence identity and citation coverage. Human review or a separately controlled evaluator may assess semantic support, with its limits clearly labeled.
 
+`expectedAnswerPoints` currently use deterministic normalized-token overlap as a screening metric. Identifier separators, `no`/`not` negation, and bounded English variants such as plurals, `-ed`, `-ing`, and `-ically` are normalized so grammatical wording does not create obvious false negatives. This can identify missing concepts but cannot prove entailment or citation support. A case is marked for semantic review when a point is missed or when `mustAbstain` accompanies expected negative-boundary points, as in a response that should state no approved behavior without inventing an algorithm. Only `mustAbstain` cases with no expected answer points require a full no-evidence abstention automatically.
+
+Answer runs persist the full citation validator result: cited IDs, invalid IDs, and uncited factual paragraphs. Bracket groups such as `[E1, E2]` expand to both evidence identifiers. Evidence-based refusal language is recognized as abstention even when the provider does not use Primer's deterministic wording. Identifier punctuation such as `tenant_id` and `tenant-id` is normalized for expected-point screening.
+
 ### Synchronization
 
 - unchanged input causes no record churn;
@@ -81,6 +92,23 @@ Deterministic validation should cover evidence identity and citation coverage. H
 
 Measure latency separately for authorization, lexical retrieval, semantic retrieval, fusion/policy, evidence construction, generation, and validation. The first release establishes observable baselines before scale targets are set.
 
+### Operational contracts
+
+- human-readable CLI evaluation output identifies failed cases and the stage responsible;
+- JSON evaluation output is stable enough for regression comparison and later web/API consumption;
+- provider, rate-limit, configuration, and fixture-validation failures are distinguishable from relevance failures;
+- web evaluation views report the same underlying run rather than recalculate metrics independently.
+
+## Deterministic and live evaluation
+
+The normal automated test suite must not require an OpenRouter key, network access, or paid model calls. It uses deterministic embedding and answer adapters to verify contracts, authorization, ranking mechanics, citation identity, synchronization, and presentation of traces.
+
+Live model evaluation is an explicit command or option. It uses the configured OpenRouter embedding model through the official OpenRouter TypeScript SDK and later answer models through Vercel AI SDK, recording returned model identity, relevant configuration, usage, and timing. Live results are comparable only when the embedding space and evaluation configuration are compatible.
+
+Repeated `--case <case-id>` options select a subset for a paid live rerun. The persisted run records the filter. Citation repair is limited to one extra provider call per answer, and aggregated usage includes both attempts.
+
+Model-dependent quality and deterministic correctness are reported separately. A provider failure cannot be reported as a retrieval-quality score, and a fluent live answer cannot override a deterministic authorization or citation failure.
+
 ## Evaluation workflow
 
 1. Freeze a versioned sample-data fixture.
@@ -91,11 +119,15 @@ Measure latency separately for authorization, lexical retrieval, semantic retrie
 6. Compare results by configuration and model version.
 7. Review failures through the same traces exposed in the product.
 
+The CLI is the first evaluation surface. The later web application reads persisted evaluation runs and invokes the same evaluation service.
+
 ## Exit criteria for implementation phases
 
 - Evidence search cannot pass while exact-identifier or natural-language cases systematically fail.
 - Grounded answers cannot pass while citations can reference missing evidence or abstention fails.
 - Access-control work cannot pass with any permission leakage.
 - Synchronization cannot pass while deletion or unchanged-input idempotency is unverified.
+- The CLI milestone cannot pass without stable JSON contract tests and an end-to-end offline evaluation run.
+- The web milestone cannot pass if its displayed evidence, metrics, or trace differs from the underlying application-service result.
 
-Numeric thresholds will be set after the dataset is drafted and a simple baseline is measured. Choosing thresholds before representative cases would create false precision.
+Numeric retrieval thresholds should be derived from recorded live baselines for the same fixture version. Choosing thresholds across incompatible fixture expectations would create false precision. Permission leakage, missing citation identity, and deterministic contract failures retain zero-tolerance gates.

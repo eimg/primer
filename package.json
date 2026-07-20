@@ -1,0 +1,48 @@
+{
+  "name": "@eimg/primer",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Inspect organizational sources as authorized evidence and cited answers",
+  "license": "MIT",
+  "author": "Ei Maung",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "primer": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "sample-data",
+    "scripts",
+    "README.md",
+    "AGENTS.md",
+    "docs"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "node --env-file=.env --import tsx src/cli.ts",
+    "dev:offline": "PRIMER_DATA_DIR=.primer/offline PRIMER_EMBEDDING_PROVIDER=deterministic PRIMER_CHAT_PROVIDER=deterministic node --import tsx src/cli.ts",
+    "baseline:offline": "npm run dev:offline -- init && npm run dev:offline -- sources ingest && npm run dev:offline -- evaluate",
+    "baseline:live": "npm run dev -- init && npm run dev -- sources ingest && npm run dev -- evaluate",
+    "baseline:answers:offline": "npm run dev:offline -- init && npm run dev:offline -- sources ingest && npm run dev:offline -- evaluate answers",
+    "baseline:answers:live": "npm run dev -- init && npm run dev -- sources ingest && npm run dev -- evaluate answers",
+    "test": "node --test --import tsx test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run typecheck && npm test && npm run build && npm audit"
+  },
+  "dependencies": {
+    "@openrouter/ai-sdk-provider": "^3.0.0",
+    "@openrouter/sdk": "^0.13.66",
+    "ai": "^7.0.31",
+    "better-sqlite3": "^12.11.0",
+    "yaml": "^2.8.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20.19.33",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

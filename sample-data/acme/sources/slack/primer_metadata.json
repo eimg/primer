@@ -2,8 +2,7 @@
   "C-CC-DEV":{"projectId":"clientcore","access":{"visibility":"group","allowedGroupIds":["g-clientcore","g-support"]}},
   "C-TF-DEV":{"projectId":"talentflow","access":{"visibility":"group","allowedGroupIds":["g-talentflow","g-support"]}},
   "C-PLATFORM":{"projectId":"platform","access":{"visibility":"group","allowedGroupIds":["g-engineering","g-platform"]}},
-  "C-SUPPORT":{"projectId":"platform","access":{"visibility":"group","allowedGroupIds":["g-support","g-clientcore","g-talentflow"]}},
+  "C-SUPPORT":{"projectId":"platform","access":{"visibility":"group","allowedGroupIds":["g-support","g-clientcore","g-talentflow"]},"threadOverrides":{"1778668200.000100":{"projectId":"clientcore"}}},
   "C-GENERAL":{"projectId":"platform","access":{"visibility":"public","allowedGroupIds":["g-all"]}},
-  "G-LEADERSHIP":{"projectId":"platform","access":{"visibility":"restricted","allowedGroupIds":["g-leadership"],"allowedUserIds":[]}}
+  "G-LEADERSHIP":{"projectId":"platform","access":{"visibility":"restricted","allowedGroupIds":["g-leadership"],"allowedUserIds":[]},"threadOverrides":{"1778491800.000100":{"projectId":"talentflow","resolutionState":"proposed","authority":0.45}}}
 }
-

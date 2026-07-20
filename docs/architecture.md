@@ -1,6 +1,40 @@
 # Primer conceptual architecture
 
-**Status:** Pre-implementation architecture. Components are logical ownership boundaries, not a commitment to separate services.
+**Status:** Phase 4 active. The CLI, application services, SQLite index, independent connector/processor registry, Markdown and Slack processors, embedding adapters, policy-adjusted retrieval trace, `primer.context.v1`, grounded answer providers, citation validation with bounded repair, abstention, and separate persisted retrieval/answer evaluations exist. Phase 3 live baselines are recorded; complete synchronization/removal, HTTP, web components, and an optional later Pi simulation remain. Components are logical ownership boundaries, not separate services.
+
+## Delivery shape
+
+Primer begins as one TypeScript application on Node.js. Its domain and application services are independent of delivery adapters:
+
+```text
+Phase A
+CLI commands
+  -> application services
+  -> source / retrieval / answer modules
+  -> SQLite derived index
+
+Phase B
+CLI commands ─┐
+HTTP API      ├-> the same application services and modules
+React UI      ┘
+```
+
+The CLI is the first product surface. The HTTP API and web UI are later adapters, not a rewrite. Stable CLI JSON and later HTTP responses should reuse versioned result contracts where their semantics match.
+
+The current implementation follows this map:
+
+```text
+src/cli.ts
+  -> src/services.ts
+     -> src/connectors/*
+     -> src/fixture.ts / src/markdown.ts / src/slack.ts
+     -> src/database.ts
+     -> src/embeddings.ts
+     -> src/ranking.ts / src/context.ts / src/answers.ts
+  -> SQLite database under PRIMER_DATA_DIR
+```
+
+Markdown and Slack export source processing are implemented behind independent connector registrations. Source-code bodies are deliberately outside the Primer index. Grounded answer generation and the initial-context pack are implemented; complete synchronization/removal, HTTP, React, the optional Pi simulation, and external integrations remain phase-gated.
 
 ## Architectural shape
 
@@ -26,15 +60,27 @@ question + actor + scope
 
 An inspection trace observes both paths. The trace is a first-class product output.
 
+### Future hybrid discovery path
+
+The current implementation is intentionally index-first: connectors acquire source material, processors normalize it, and inquiry runs over Primer's derived index. This remains the active architecture and implementation scope.
+
+The architecture nevertheless distinguishes three concerns so a future source adapter can use capable native search without redesigning the evidence boundary:
+
+1. **Discovery** finds candidate material through a source-native query, progressive inspection, or the derived Primer index.
+2. **Evidence normalization** converts selected material into the canonical, permission-checked, attributable evidence shape.
+3. **Durable indexing** persists normalized records for repeatability, cross-source retrieval, latency, and evaluation.
+
+A later connector may support `explore`, `ingest`, or both. Exploration results cannot flow directly to an answer model: anything used as evidence must still pass authorization, normalization, provenance capture, evidence construction, and tracing. Native discovery is an extension point, not part of the current CLI phases, and the existing connector contract does not yet promise an exploration API.
+
 ## Ownership boundaries
 
 ### Source adapter
 
-Reads source objects and preserves stable identity, native URL or local reference, timestamps, authorship, metadata, and access rules. It does not decide answer relevance.
+Acquires native source items and preserves connector identity, native URL or local reference, raw content, and connector-specific metadata. It does not parse content into retrieval records, embed content, decide answer relevance, or write the index.
 
 ### Source processor
 
-Understands the structure of one source type and produces retrieval-friendly records. It may use a model for normalization, but model output remains derived data and must be schema-validated.
+Understands the structure of one source family, maps native identity, timestamps, authorship, project and access metadata into a canonical source object, and produces retrieval-friendly records plus visible index decisions. It may use a model for normalization, but model output remains derived data and must be schema-validated.
 
 ### Index policy
 
@@ -72,17 +118,39 @@ Produces claims, citations, conflict notes, and uncertainty from the evidence se
 
 Checks that referenced evidence exists and that material claims have nearby support. Semantic claim-support scoring may assist later, but deterministic existence and coverage checks come first.
 
+If generated output fails deterministic citation validation, the application service may request one revision using the same authorized evidence plus the failed answer and validator diagnostics. There is no unbounded retry loop. Both calls contribute to recorded usage and timing; a second failure remains visible rather than being silently accepted.
+
 ### Trace recorder
 
 Captures stage inputs, outputs, timing, configuration versions, and decision reasons while respecting the same visibility boundary as the user.
+
+### Application service layer
+
+Coordinates explicit use cases such as registering a source, synchronizing content, retrieving evidence, asking a question, inspecting a trace, and running evaluation. CLI and HTTP handlers depend on this layer. It owns transaction/use-case sequencing but not source parsing, ranking policy, or provider-specific request types.
+
+### Delivery adapters
+
+- The CLI maps arguments, environment, exit status, human output, and stable JSON to application services.
+- The later HTTP API maps authenticated local requests to the same services.
+- The React UI consumes the HTTP API for chat, accounts, content, traces, synchronization, and evaluation.
+
+No domain rule should exist only in a command handler, route, or browser component.
 
 ## Canonical contracts
 
 Names and fields may change during implementation, but the semantic distinctions should remain.
 
 ```ts
+type ConnectorItem = {
+  connectorId: string;
+  sourceFamily: string;
+  sourceRef: string;
+  rawContent: string;
+  metadata: Record<string, unknown>;
+};
+
 type SourceObject = {
-  source: "slack" | "git" | "markdown";
+  source: string;
   sourceId: string;
   sourceRef: string;
   sourceType: string;
@@ -121,12 +189,54 @@ type Evidence = {
   source: string;
   sourceRef: string;
   updatedAt: string;
+  authority: number;
+  resolutionState?: "proposed" | "resolved" | "superseded";
   retrievalReasons: string[];
+  policyReasons: Array<{
+    kind: "authority" | "freshness" | "resolution";
+    adjustment: number;
+    reason: string;
+  }>;
   permissionChecked: true;
+};
+
+type OrchestratorContextPack = {
+  schemaVersion: "primer.context.v1";
+  traceId: string;
+  actorId: string;
+  question: string;
+  projectId?: string;
+  evidence: Evidence[];
+  constraints: Array<{ text: string; evidenceIds: string[] }>;
+  conflicts: Array<{ text: string; evidenceIds: string[] }>;
+  codeLeads: Array<{
+    ref: string;
+    reason: string;
+    evidenceIds: string[];
+    verifiedAgainstRepository: false;
+  }>;
+  createdAt: string;
 };
 ```
 
-`AccessDescriptor` remains abstract until the initial identity model is chosen. It must support filtering without copying protected content into an unsafe trace.
+`AccessDescriptor` uses the fixture's `public`, `group`, and `restricted` visibility plus allowed group and user identifiers. It must support filtering without copying protected content into an unsafe trace. CLI commands receive an explicit user identity. The web phase adds local accounts and sessions over the same resolver; it does not add external federation.
+
+`OrchestratorContextPack` is implemented as `primer.context.v1`. It contains only authorized Primer evidence and attributable derived guidance. `codeLeads` may repeat paths or symbols mentioned by evidence, but they are explicitly unverified until the receiving harness checks a pinned repository revision. The pack never contains hidden pre-authorization candidates or Pi-discovered code from a prior run.
+
+## Initial physical storage
+
+SQLite is the first derived index and operational store. It keeps:
+
+- source objects and versions;
+- knowledge records and provenance;
+- ACL attributes and local identity/group data;
+- full-text search fields;
+- embedding vectors with model/configuration identity;
+- indexing decisions and synchronization state;
+- inquiry traces, evidence, and persisted retrieval and answer-evaluation runs; and
+- later local web accounts and sessions.
+
+Lexical retrieval uses SQLite full-text search. Semantic retrieval initially loads the permitted candidate population through a vector repository and performs exhaustive cosine comparison, which is credible for the small frozen corpus and intentionally not presented as a scale architecture. Storage and vector interfaces preserve a later PostgreSQL/pgvector option.
 
 ## Data and trust boundaries
 
@@ -161,6 +271,16 @@ Models may assist normalization, embedding, and answer generation. Each use has 
 - answering receives only the final authorized evidence set;
 - no model is the authority for ACL decisions, source identity, or citation existence.
 
+OpenRouter is the initial chat and embedding provider. SDK choices remain inside model adapters:
+
+- the official OpenRouter TypeScript SDK batches approved record content and embeds queries with a compatible model/configuration;
+- Vercel AI SDK implements controlled answer generation and can support later terminal/web streaming;
+- Pi may later host a server-side, read-only code-exploration simulation that mirrors the Helix handoff.
+
+Chat and embedding model IDs are configured independently. Provider credentials never enter the database, trace, browser bundle, or generated evidence. Provider SDK types remain inside adapters. Deterministic test adapters replace network calls in the normal test suite; live evaluation is explicit.
+
+The evidence pipeline is a structured workflow, not an agent loop. A later Pi simulation begins only after Primer has built authorized initial context. It cannot bypass authorization, evidence construction, or citation validation, and its discovered code context remains separate from indexed Primer evidence.
+
 ## Consistency and synchronization
 
 - Source and record identities must be stable.
@@ -172,18 +292,42 @@ Models may assist normalization, embedding, and answer generation. Each use has 
 
 ## Runtime shape
 
-The MVP should default to one application and one database unless a measured requirement proves a service boundary necessary. Logical components should be expressed as modules/interfaces first.
+The MVP uses one TypeScript application and one SQLite database unless a measured requirement proves a service boundary necessary. Logical components are modules/interfaces first.
 
 An internal function or ordinary API is the default retrieval boundary. MCP becomes useful only if multiple independent AI clients need the same tool, or if deployment, credentials, policy, or runtime ownership genuinely require a service boundary.
 
-## Technology decisions deliberately deferred
+## Future external boundaries
 
-- application framework and UI stack;
-- programming language;
-- local containers versus installed services;
-- PostgreSQL/pgvector versus a simpler local first slice;
-- embedding and answer providers;
-- code parser strategy;
-- exact tracing and evaluation libraries.
+Future relationships are planned without coupling current implementation.
 
-These are decision-gate outputs, not architectural principles. See [`decisions.md`](./decisions.md).
+### Acme Issues source adapter
+
+Acme Issues remains the system of record for issues, comments, labels, state, webhook deliveries, and Helix run lineage. A future Primer adapter reads its supported API or another explicit read-only export and emits stable source objects. It requires source-aware issue/timeline processing, access mapping, incremental version identity, and deletion behavior. Direct writes to Acme Issues are out of scope.
+
+### Helix evidence consumer
+
+Helix may later query Primer before planning or specialist work:
+
+```text
+Helix request: actor + question + project/scope + limit
+  -> Primer authorization and retrieval
+  -> bounded evidence pack with provenance and reasons
+  -> Helix-owned reasoning and workflow
+```
+
+Primer's response supplies organizational context: decisions, policies, incidents, conversations, constraints, conflicts, and possible code leads. Helix's Pi harness owns current-repository exploration, file/symbol verification, tests, and implementation context. Primer does not duplicate that exploration or present remembered paths as current code truth.
+
+The first integration-compatible boundary is a versioned JSON initial-context pack from the CLI. The web phase adds an equivalent HTTP contract. Helix must not read the Primer database, and Primer must not absorb Helix's orchestration or Pi sessions. A shared MCP tool is deferred until independent consumers or a deployment, credential, ownership, isolation, or policy boundary justifies it.
+
+## Technology decisions settled
+
+- TypeScript on Node.js in one locally runnable application;
+- CLI before HTTP API and React UI;
+- SQLite full-text search plus an abstract exhaustive vector baseline;
+- OpenRouter for embeddings through its official TypeScript SDK, and for grounded chat through Vercel AI SDK, with streaming deferred;
+- deterministic Markdown and Slack processing, with source-code exploration delegated to the orchestrator harness;
+- Pi reserved for a later server-side, read-only simulation of that harness boundary;
+- fixture identities/groups for CLI authorization and local accounts/sessions in the web phase;
+- safe versioned traces shared by CLI and web adapters.
+
+Exact HTTP framework, React build tooling, CLI command parser, migration library, and concrete OpenRouter model IDs may be selected during implementation without changing these boundaries. See [`decisions.md`](./decisions.md).

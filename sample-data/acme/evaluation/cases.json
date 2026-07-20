@@ -4,7 +4,8 @@
     "question":"Why did TalentFlow send duplicate interview reminders?",
     "userId":"u-owen",
     "projectId":"talentflow",
-    "expectedRecordIds":["md:md-tf-incident-184#root-cause","slack:C-TF-DEV:1776763800.000100","git:acme/talentflow:src/notifications/retry.ts#retryNotification"],
+    "expectedRecordIds":["md:md-tf-incident-184#root-cause","slack:C-TF-DEV:1776763800.000100"],
+    "expectedCodeContextRefs":["git:acme/talentflow:src/notifications/retry.ts#retryNotification"],
     "distractorRecordIds":["md:md-platform-queue-onboarding-old#queue-worker-onboarding-notes"],
     "expectedAnswerPoints":["retryNotification omitted the stable idempotency key on retry","queue visibility timeout was investigated and ruled out"],
     "rationale":"Resolved incident must outrank the initial queue speculation and superseded onboarding page."
@@ -14,7 +15,8 @@
     "question":"Where is retryNotification implemented?",
     "userId":"u-owen",
     "projectId":"talentflow",
-    "expectedRecordIds":["git:acme/talentflow:src/notifications/retry.ts#retryNotification"],
+    "expectedRecordIds":[],
+    "expectedCodeContextRefs":["git:acme/talentflow:src/notifications/retry.ts#retryNotification"],
     "expectedAnswerPoints":["src/notifications/retry.ts"],
     "rationale":"Exact symbol and path retrieval should favor lexical search."
   },
@@ -23,17 +25,19 @@
     "question":"What is the TalentFlow notification queue visibility timeout?",
     "userId":"u-priya",
     "projectId":"talentflow",
-    "expectedRecordIds":["git:acme/talentflow:src/notifications/queue.ts#TALENTFLOW_NOTIFICATION_VISIBILITY_SECONDS","md:md-tf-incident-184#root-cause"],
+    "expectedRecordIds":["md:md-tf-incident-184#root-cause"],
+    "expectedCodeContextRefs":["git:acme/talentflow:src/notifications/queue.ts#TALENTFLOW_NOTIFICATION_VISIBILITY_SECONDS"],
     "distractorRecordIds":["md:md-platform-queue-onboarding-old#queue-worker-onboarding-notes"],
-    "expectedAnswerPoints":["90 seconds","the 60-second onboarding statement is superseded"],
-    "rationale":"Current product configuration must outrank a stale generic page."
+    "expectedAnswerPoints":["90 seconds"],
+    "rationale":"Current product configuration must answer the scoped question; the stale platform page remains a retrieval distractor but is not available as scoped answer evidence."
   },
   {
     "id":"rf-eval-004",
     "question":"What does CC_IMPORT_017 mean?",
     "userId":"u-maya",
     "projectId":"clientcore",
-    "expectedRecordIds":["md:md-cc-imports#account-owner-mapping","git:acme/clientcore:src/imports/mapOwner.ts#UNKNOWN_OWNER_ERROR","slack:C-CC-DEV:1778147100.000100"],
+    "expectedRecordIds":["md:md-cc-imports#account-owner-mapping","slack:C-CC-DEV:1778147100.000100"],
+    "expectedCodeContextRefs":["git:acme/clientcore:src/imports/mapOwner.ts#UNKNOWN_OWNER_ERROR"],
     "expectedAnswerPoints":["an explicitly supplied owner email does not match an active tenant user"],
     "rationale":"Exact error-code search should connect code, documentation, and support clarification."
   },
@@ -42,7 +46,8 @@
     "question":"Who owns imported ClientCore accounts when owner_email is missing?",
     "userId":"u-marcus",
     "projectId":"clientcore",
-    "expectedRecordIds":["md:md-cc-imports#account-owner-mapping","git:acme/clientcore:src/imports/mapOwner.ts#mapOwner","slack:C-CC-DEV:1775467800.000100"],
+    "expectedRecordIds":["md:md-cc-imports#account-owner-mapping","slack:C-CC-DEV:1775467800.000100"],
+    "expectedCodeContextRefs":["git:acme/clientcore:src/imports/mapOwner.ts#mapOwner"],
     "expectedAnswerPoints":["the importing user"],
     "rationale":"Natural-language retrieval should find the rule without requiring the symbol name."
   },
@@ -51,7 +56,8 @@
     "question":"How does ClientCore prevent duplicate imported activities?",
     "userId":"u-maya",
     "projectId":"clientcore",
-    "expectedRecordIds":["md:md-cc-adr-activity-dedupe#decision","git:acme/clientcore:src/activities/dedupe.ts#activityDedupeKey","slack:C-CC-DEV:1776071400.000100"],
+    "expectedRecordIds":["md:md-cc-adr-activity-dedupe#decision","slack:C-CC-DEV:1776071400.000100"],
+    "expectedCodeContextRefs":["git:acme/clientcore:src/activities/dedupe.ts#activityDedupeKey"],
     "expectedAnswerPoints":["tenant ID plus source event ID","timestamp-only deduplication was rejected"],
     "rationale":"Resolved decision must retain the rejected timestamp proposal as context rather than truth."
   },
@@ -60,7 +66,8 @@
     "question":"Can an employer reopen a withdrawn TalentFlow application?",
     "userId":"u-samira",
     "projectId":"talentflow",
-    "expectedRecordIds":["md:md-tf-application-lifecycle#withdrawn-applications","git:acme/talentflow:src/applications/transitions.ts#employerCanTransition"],
+    "expectedRecordIds":["md:md-tf-application-lifecycle#withdrawn-applications"],
+    "expectedCodeContextRefs":["git:acme/talentflow:src/applications/transitions.ts#employerCanTransition"],
     "expectedAnswerPoints":["no","withdrawn is terminal and candidate-controlled","a returning candidate submits a new application"],
     "rationale":"Approved product policy and implementation should agree."
   },
@@ -69,16 +76,18 @@
     "question":"Does archiving a ClientCore account delete its activities?",
     "userId":"u-lena",
     "projectId":"clientcore",
-    "expectedRecordIds":["md:md-cc-account-archival#retained-information","git:acme/clientcore:src/accounts/archive.ts#auditActivities"],
-    "expectedAnswerPoints":["no","activities remain available for audit","archived accounts are hidden from default search"],
-    "rationale":"Tests semantic retrieval across archival, deletion, and audit vocabulary."
+    "expectedRecordIds":["md:md-cc-account-archival#retained-information"],
+    "expectedCodeContextRefs":["git:acme/clientcore:src/accounts/archive.ts#auditActivities"],
+    "expectedAnswerPoints":["no","activities remain available for audit"],
+    "rationale":"Tests semantic retrieval across archival, deletion, and audit vocabulary without requiring unrelated search-visibility detail."
   },
   {
     "id":"rf-eval-009",
     "question":"What happens to existing job listings when a TalentFlow employer is suspended?",
     "userId":"u-samira",
     "projectId":"talentflow",
-    "expectedRecordIds":["md:md-tf-employer-suspension#root","git:acme/talentflow:src/employers/suspension.ts#visibleListings"],
+    "expectedRecordIds":["md:md-tf-employer-suspension#talentflow-employer-suspension"],
+    "expectedCodeContextRefs":["git:acme/talentflow:src/employers/suspension.ts#visibleListings"],
     "expectedAnswerPoints":["existing public listings remain visible","new job publishing is blocked"],
     "rationale":"Avoid conflating suspension with archival or deletion."
   },
@@ -87,7 +96,8 @@
     "question":"How long can an employer use a candidate resume download link?",
     "userId":"u-owen",
     "projectId":"talentflow",
-    "expectedRecordIds":["md:md-tf-resume-access#candidate-resume-access-policy","git:acme/talentflow:src/resumes/signedUrl.ts#RESUME_URL_TTL_SECONDS"],
+    "expectedRecordIds":["md:md-tf-resume-access#candidate-resume-access-policy"],
+    "expectedCodeContextRefs":["git:acme/talentflow:src/resumes/signedUrl.ts#RESUME_URL_TTL_SECONDS"],
     "expectedAnswerPoints":["five minutes","scoped to one resume and employer tenant"],
     "rationale":"Security policy and code constant should agree."
   },
@@ -139,4 +149,3 @@
     "rationale":"Tests distinction between duplicated communication and duplicated domain records."
   }
 ]
-

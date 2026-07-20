@@ -1,0 +1,427 @@
+#!/usr/bin/env node
+import { PrimerDatabase } from "./database.js";
+import { loadConfig, type PrimerConfig } from "./config.js";
+import { createEmbeddingProvider, DeterministicEmbeddingProvider } from "./embeddings.js";
+import { createAnswerProvider } from "./answers.js";
+import { validateFixture } from "./fixture.js";
+import { PrimerServices, type AnswerEvaluationResult, type EvaluationResult } from "./services.js";
+import type { GroundedAnswer, OrchestratorContextPack, RetrievalTrace, ValidationReport } from "./types.js";
+
+const HELP = `Primer — inspect organizational sources as authorized evidence
+
+Usage:
+  primer init [--fixture <path>] [--data-dir <path>] [--json]
+  primer validate [--fixture <path>] [--json]
+  primer users list|show <user-id> [--json]
+  primer sources connectors [--json]
+  primer sources ingest [path] [--connector <connector-id>] [--json]
+  primer sources list [--json]
+  primer sources inspect <source-id> [--json]
+  primer retrieve <question> --user <user-id> [--project <project-id>] [--limit <n>] [--json]
+  primer context <question> --user <user-id> [--project <project-id>] [--limit <n>] [--json]
+  primer ask <question> --user <user-id> [--project <project-id>] [--limit <n>] [--json]
+  primer trace show <trace-id> [--json]
+  primer evaluate [retrieval|answers] [--case <case-id> ...] [--json]
+  primer evaluations list [--json]
+  primer evaluations show <run-id> [--json]
+
+Environment:
+  PRIMER_DATA_DIR                 Local state directory (default: ./.primer)
+  PRIMER_FIXTURE_DIR              Acme fixture root (default: ./sample-data/acme)
+  PRIMER_EMBEDDING_PROVIDER       openrouter (default) or deterministic
+  PRIMER_EMBEDDING_MODEL          Required OpenRouter embedding model ID
+  PRIMER_CHAT_PROVIDER            openrouter (default) or deterministic
+  PRIMER_CHAT_MODEL               Required OpenRouter chat model ID
+  OPENROUTER_API_KEY              Required for OpenRouter embeddings
+
+Use PRIMER_EMBEDDING_PROVIDER=deterministic only for explicit offline development and tests.
+`;
+
+interface ParsedArgs {
+  positionals: string[];
+  json: boolean;
+  dataDir?: string;
+  fixtureDir?: string;
+  userId?: string;
+  projectId?: string;
+  limit?: number;
+  connectorId?: string;
+  caseIds: string[];
+}
+
+function parseArguments(args: string[]): ParsedArgs {
+  const positionals: string[] = [];
+  const parsed: ParsedArgs = { positionals, json: false, caseIds: [] };
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--json") parsed.json = true;
+    else if (arg === "--data-dir") parsed.dataDir = requiredValue(args, ++index, arg);
+    else if (arg === "--fixture") parsed.fixtureDir = requiredValue(args, ++index, arg);
+    else if (arg === "--user") parsed.userId = requiredValue(args, ++index, arg);
+    else if (arg === "--project") parsed.projectId = requiredValue(args, ++index, arg);
+    else if (arg === "--connector") parsed.connectorId = requiredValue(args, ++index, arg);
+    else if (arg === "--case") parsed.caseIds.push(requiredValue(args, ++index, arg));
+    else if (arg === "--limit") {
+      const value = Number(requiredValue(args, ++index, arg));
+      if (!Number.isInteger(value) || value < 1) throw new Error("--limit must be a positive integer");
+      parsed.limit = value;
+    } else if (arg?.startsWith("--")) throw new Error(`Unknown option: ${arg}`);
+    else if (arg) positionals.push(arg);
+  }
+  return parsed;
+}
+
+function requiredValue(args: string[], index: number, option: string): string {
+  const value = args[index];
+  if (!value || value.startsWith("--")) throw new Error(`${option} requires a value`);
+  return value;
+}
+
+function configFromArgs(args: ParsedArgs): PrimerConfig {
+  return loadConfig({
+    ...(args.dataDir ? { dataDir: args.dataDir } : {}),
+    ...(args.fixtureDir ? { fixtureDir: args.fixtureDir } : {}),
+  });
+}
+
+function print(value: unknown, asJson: boolean, human: () => string): void {
+  process.stdout.write(asJson ? `${JSON.stringify(value, null, 2)}\n` : `${human()}\n`);
+}
+
+function validationText(report: ValidationReport): string {
+  const counts = Object.entries(report.counts)
+    .map(([key, value]) => `  ${key}: ${value}`)
+    .join("\n");
+  const issues = report.issues
+    .map((issue) => `  ${issue.severity.toUpperCase()} ${issue.path}: ${issue.message}`)
+    .join("\n");
+  return [
+    report.valid ? `Fixture ${report.fixtureId ?? "unknown"} is valid.` : "Fixture is invalid.",
+    counts && `Counts:\n${counts}`,
+    issues && `Issues:\n${issues}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function retrievalText(trace: RetrievalTrace): string {
+  const stage = (name: string, items: Array<{ rank: number; recordId: string; score: number }>) =>
+    `${name}:\n${items
+      .slice(0, 10)
+      .map((item) => `  ${item.rank}. ${item.recordId} (${item.score.toFixed(4)})`)
+      .join("\n") || "  no candidates"}`;
+  const evidence = trace.evidence
+    .map((item) => `  ${item.evidenceId} ${item.recordId}\n     ${item.title} — ${item.sourceRef}`)
+    .join("\n");
+  return [
+    `Trace ${trace.traceId}`,
+    `Question: ${trace.question}`,
+    `Identity: ${trace.userId}${trace.projectId ? ` · project ${trace.projectId}` : ""}`,
+    `Embedding: ${trace.embeddingModel}`,
+    stage("Lexical", trace.lexical),
+    stage("Semantic", trace.semantic),
+    `Policy-ranked:\n${trace.fused
+      .slice(0, 10)
+      .map((item) => `  ${item.rank}. ${item.recordId} (${item.fusedScore.toFixed(6)}; adjustment ${item.policyAdjustment >= 0 ? "+" : ""}${item.policyAdjustment.toFixed(4)})`)
+      .join("\n") || "  no candidates"}`,
+    `Evidence:\n${evidence || "  no evidence"}`,
+    `Timing: ${trace.timingMs.total.toFixed(2)} ms total`,
+  ].join("\n\n");
+}
+
+function contextText(context: OrchestratorContextPack): string {
+  return [
+    `Context ${context.schemaVersion} · trace ${context.traceId}`,
+    `Question: ${context.question}`,
+    `Identity: ${context.actorId}${context.projectId ? ` · project ${context.projectId}` : ""}`,
+    `Evidence: ${context.evidence.map((item) => `${item.evidenceId} ${item.recordId}`).join(", ") || "none"}`,
+    `Constraints: ${context.constraints.length}`,
+    `Conflicts: ${context.conflicts.length}`,
+    `Unverified code leads: ${context.codeLeads.map((item) => item.ref).join(", ") || "none"}`,
+  ].join("\n");
+}
+
+function answerText(result: GroundedAnswer): string {
+  return [
+    result.answer,
+    `\nTrace: ${result.traceId}`,
+    `Model: ${result.model}${result.configuredModel !== result.model ? ` · configured ${result.configuredModel}` : ""}`,
+    `Generation attempts: ${result.generationAttempts}`,
+    `Citations: ${result.citationValidation.valid ? "valid" : "invalid"}`,
+    `Timing: ${result.timingMs.total.toFixed(2)} ms total · ${result.timingMs.generation.toFixed(2)} ms generation`,
+    `Evidence: ${result.evidence.map((item) => `[${item.evidenceId}] ${item.sourceRef}`).join(", ") || "none"}`,
+  ].join("\n");
+}
+
+function answerEvaluationText(result: AnswerEvaluationResult): string {
+  const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+  const cases = result.cases
+    .map(
+      (item) =>
+        `  ${item.id}: citations ${item.citationValid ? "valid" : "invalid"}, points ${item.pointResults.filter((point) => point.covered).length}/${item.pointResults.length}, behavior ${item.behaviorPassed ? "pass" : "fail"}${item.requiresSemanticReview ? ", review" : ""}`,
+    )
+    .join("\n");
+  const usage = result.aggregate.totalTokens !== undefined
+    ? `Tokens: ${result.aggregate.inputTokens ?? 0} input · ${result.aggregate.outputTokens ?? 0} output · ${result.aggregate.totalTokens} total`
+    : "Tokens: unavailable";
+  return [
+    `Answer evaluation ${result.runId}`,
+    `Fixture: ${result.fixtureId}`,
+    `Models: ${result.embeddingModel} · ${result.answerModel} (${result.providerMode})`,
+    `Cases: ${result.aggregate.cases}; skipped: ${result.skippedCaseIds.length}`,
+    result.caseFilter?.length ? `Filter: ${result.caseFilter.join(", ")}` : "",
+    cases,
+    `Citations: ${result.aggregate.citationValidCases}/${result.aggregate.cases} valid`,
+    `Permissions: ${result.aggregate.permissionSafeCases}/${result.aggregate.cases} safe`,
+    `Full abstention: ${result.aggregate.correctFullAbstentionCases}/${result.aggregate.expectedFullAbstentionCases} correct`,
+    `Expected points: ${result.aggregate.coveredAnswerPoints}/${result.aggregate.expectedAnswerPoints} covered · mean ${percent(result.aggregate.meanAnswerPointCoverage)}`,
+    `Semantic review: ${result.aggregate.semanticReviewCases} cases`,
+    usage,
+    `Timing: ${result.aggregate.totalDurationMs.toFixed(2)} ms total · ${result.aggregate.meanDurationMs.toFixed(2)} ms mean`,
+  ].filter(Boolean).join("\n");
+}
+
+function evaluationText(result: EvaluationResult): string {
+  const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+  const cases = result.cases
+    .map(
+      (item) =>
+        `  ${item.id}: lexical ${percent(item.lexicalRecall)}, semantic ${percent(item.semanticRecall)}, union ${percent(item.unionRecall)}, evidence ${percent(item.evidenceRecall)}`,
+    )
+    .join("\n");
+  return [
+    `Evaluation ${result.runId}`,
+    `Fixture: ${result.fixtureId}`,
+    `Embedding: ${result.embeddingModel}`,
+    `Eligible indexed-source cases: ${result.aggregate.cases}; skipped: ${result.skippedCaseIds.length}`,
+    `Code-context cases deferred to the orchestrator harness: ${result.codeContextCaseIds.length}`,
+    cases,
+    `Mean recall — lexical ${percent(result.aggregate.meanLexicalRecall)}, semantic ${percent(result.aggregate.meanSemanticRecall)}, union ${percent(result.aggregate.meanUnionRecall)}, evidence ${percent(result.aggregate.meanEvidenceRecall)}`,
+    `Permission checks: ${result.aggregate.permissionSafeCases}/${result.aggregate.permissionCases} safe`,
+  ].join("\n");
+}
+
+async function withServices<T>(
+  config: PrimerConfig,
+  needsEmbeddings: boolean,
+  action: (services: PrimerServices) => Promise<T> | T,
+  needsAnswers = false,
+): Promise<T> {
+  const database = new PrimerDatabase(config.databasePath);
+  const embeddings = needsEmbeddings ? createEmbeddingProvider(config) : new DeterministicEmbeddingProvider();
+  try {
+    return await action(
+      new PrimerServices(config, database, embeddings, undefined, needsAnswers ? createAnswerProvider(config) : undefined),
+    );
+  } finally {
+    database.close();
+  }
+}
+
+async function main(): Promise<void> {
+  const args = parseArguments(process.argv.slice(2));
+  const [command, subcommand, ...rest] = args.positionals;
+  if (!command || command === "help" || command === "--help") {
+    process.stdout.write(HELP);
+    return;
+  }
+  const config = configFromArgs(args);
+
+  if (command === "validate") {
+    const report = await validateFixture(config.fixtureDir);
+    print(report, args.json, () => validationText(report));
+    if (!report.valid) process.exitCode = 1;
+    return;
+  }
+
+  if (command === "init") {
+    const report = await withServices(config, false, (services) => services.initialize());
+    print(
+      { ...report, databasePath: config.databasePath },
+      args.json,
+      () => `${validationText(report)}\nDatabase: ${config.databasePath}`,
+    );
+    if (!report.valid) process.exitCode = 1;
+    return;
+  }
+
+  if (command === "users" && subcommand === "list") {
+    const users = await withServices(config, false, (services) => services.listUsers());
+    print(users, args.json, () => users.map((user) => `${user.id}\t${user.name}\t${user.title}`).join("\n"));
+    return;
+  }
+  if (command === "users" && subcommand === "show") {
+    const id = rest[0];
+    if (!id) throw new Error("users show requires a user ID");
+    const user = await withServices(config, false, (services) => services.getUser(id));
+    print(user, args.json, () => `${user.name} (${user.id})\n${user.title}\n${user.email}\nGroups: ${user.groupIds.join(", ")}`);
+    return;
+  }
+
+  if (command === "sources" && subcommand === "connectors") {
+    const connectors = await withServices(config, false, (services) => services.listConnectors());
+    print(
+      { schemaVersion: "primer.connectors.v1", connectors },
+      args.json,
+      () =>
+        connectors
+          .map((connector) => `${connector.connectorId}\t${connector.sourceFamily}\t${connector.processorVersion}`)
+          .join("\n"),
+    );
+    return;
+  }
+  if (command === "sources" && subcommand === "ingest") {
+    const results = await withServices(config, true, async (services) => {
+      const report = await services.initialize();
+      if (!report.valid) throw new Error("Fixture validation failed; run primer validate for details.");
+      return services.ingest({
+        ...(rest[0] ? { path: rest[0] } : {}),
+        ...(args.connectorId ? { connectorId: args.connectorId } : {}),
+      });
+    });
+    print(
+      { schemaVersion: "primer.ingest.v1", results },
+      args.json,
+      () =>
+        results
+          .map(
+            (result) =>
+              `${result.sourceId} [${result.sourceFamily}/${result.connectorId}]: ${result.status} · ${result.accepted} accepted · ${result.rejected} rejected`,
+          )
+          .join("\n"),
+    );
+    return;
+  }
+  if (command === "sources" && subcommand === "list") {
+    const sources = await withServices(config, false, (services) => services.listSources());
+    print(
+      { schemaVersion: "primer.sources.v1", sources },
+      args.json,
+      () =>
+        sources
+          .map(
+            (source) =>
+              `${source.source_id}\t${source.source_family}\t${source.project_id ?? "-"}\t${source.accepted} accepted\t${source.rejected} rejected\t${source.source_ref}`,
+          )
+          .join("\n"),
+    );
+    return;
+  }
+  if (command === "sources" && subcommand === "inspect") {
+    const sourceId = rest[0];
+    if (!sourceId) throw new Error("sources inspect requires a source ID");
+    const inspected = await withServices(config, false, (services) => services.inspectSource(sourceId));
+    print(
+      { schemaVersion: "primer.source.v1", ...inspected },
+      args.json,
+      () => [
+        `${inspected.source.source_id} [${inspected.source.source_family}] — ${inspected.source.source_ref}`,
+        `Records: ${inspected.records.length}`,
+        ...inspected.decisions.map((decision) => `  ${decision.decision}: ${decision.recordId} — ${decision.reason}`),
+      ].join("\n"),
+    );
+    return;
+  }
+
+  if (command === "retrieve") {
+    const question = [subcommand, ...rest].filter(Boolean).join(" ");
+    if (!question) throw new Error("retrieve requires a question");
+    if (!args.userId) throw new Error("retrieve requires --user <user-id>");
+    const trace = await withServices(config, true, async (services) => {
+      await services.initialize();
+      return services.retrieve({
+        question,
+        userId: args.userId!,
+        ...(args.projectId ? { projectId: args.projectId } : {}),
+        ...(args.limit ? { limit: args.limit } : {}),
+      });
+    });
+    print(trace, args.json, () => retrievalText(trace));
+    return;
+  }
+
+  if (command === "context" || command === "ask") {
+    const question = [subcommand, ...rest].filter(Boolean).join(" ");
+    if (!question) throw new Error(`${command} requires a question`);
+    if (!args.userId) throw new Error(`${command} requires --user <user-id>`);
+    const result = await withServices(
+      config,
+      true,
+      async (services) => {
+        await services.initialize();
+        const input = {
+          question,
+          userId: args.userId!,
+          ...(args.projectId ? { projectId: args.projectId } : {}),
+          ...(args.limit ? { limit: args.limit } : {}),
+        };
+        return command === "context" ? services.context(input) : services.ask(input);
+      },
+      command === "ask",
+    );
+    if (command === "context") {
+      print(result, args.json, () => contextText(result as OrchestratorContextPack));
+    } else {
+      print(result, args.json, () => answerText(result as GroundedAnswer));
+    }
+    return;
+  }
+
+  if (command === "trace" && subcommand === "show") {
+    const traceId = rest[0];
+    if (!traceId) throw new Error("trace show requires a trace ID");
+    const trace = await withServices(config, false, (services) => services.getTrace(traceId));
+    print(trace, args.json, () => retrievalText(trace));
+    return;
+  }
+
+  if (command === "evaluate") {
+    if (subcommand && subcommand !== "retrieval" && subcommand !== "answers") {
+      throw new Error("evaluate accepts only retrieval or answers");
+    }
+    const answerMode = subcommand === "answers";
+    const result = await withServices(
+      config,
+      true,
+      async (services) => {
+        const report = await services.initialize();
+        if (!report.valid) throw new Error("Fixture validation failed; run primer validate for details.");
+        if (!answerMode && args.caseIds.length > 0) throw new Error("--case is supported only by evaluate answers");
+        return answerMode ? services.evaluateAnswers({ ...(args.caseIds.length > 0 ? { caseIds: args.caseIds } : {}) }) : services.evaluate();
+      },
+      answerMode,
+    );
+    if (answerMode) {
+      print(result, args.json, () => answerEvaluationText(result as AnswerEvaluationResult));
+    } else {
+      print(result, args.json, () => evaluationText(result as EvaluationResult));
+    }
+    return;
+  }
+
+  if (command === "evaluations" && subcommand === "list") {
+    const runs = await withServices(config, false, (services) => services.listEvaluationRuns());
+    print(
+      { schemaVersion: "primer.evaluation-runs.v1", runs },
+      args.json,
+      () => runs.map((run) => `${run.id}\t${run.schemaVersion}\t${run.fixtureId}\t${run.createdAt}`).join("\n") || "No evaluation runs.",
+    );
+    return;
+  }
+
+  if (command === "evaluations" && subcommand === "show") {
+    const runId = rest[0];
+    if (!runId) throw new Error("evaluations show requires a run ID");
+    const result = await withServices(config, false, (services) => services.getEvaluationRun(runId));
+    print(result, args.json, () => JSON.stringify(result, null, 2));
+    return;
+  }
+
+  throw new Error(`Unknown command: ${args.positionals.join(" ")}\n\n${HELP}`);
+}
+
+main().catch((cause) => {
+  const message = cause instanceof Error ? cause.message : String(cause);
+  process.stderr.write(`primer: ${message}\n`);
+  process.exitCode = 1;
+});

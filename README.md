@@ -4,7 +4,7 @@ Primer is an inspectable knowledge system for turning organizational sources int
 
 Primer turns source material into authorized, ranked evidence and uses that evidence to produce cited answers. Its primary product is not a chat box. It is a trustworthy answer system with transparent decisions between ingestion and generation.
 
-Primer is currently in the groundwork stage. No runtime or application stack has been selected or implemented yet.
+Primer is currently in Phase 4 implementation. The Phase 1 Markdown slice, Phase 2 contrasting-source, policy, and context-pack work, and Phase 3 grounded CLI answers are complete. Markdown and Slack export run through independent connector/processor registrations over the same SQLite, retrieval, authorization, trace, and evaluation services. The CLI emits `primer.context.v1`, grounded `primer.answer.v1` results, and separately persisted `primer.answer-evaluation.v1` runs. Primer supplies organizational context; source-code exploration is delegated to Helix's Pi harness in real workflows. Delivery remains deliberately phased: complete the CLI source lifecycle and trust controls, then place a local web application over the same application services and contracts.
 
 ## Read first
 
@@ -14,11 +14,77 @@ Primer is currently in the groundwork stage. No runtime or application stack has
 - [`docs/architecture.md`](./docs/architecture.md) — conceptual components, ownership boundaries, and data flow.
 - [`docs/evaluation.md`](./docs/evaluation.md) — how retrieval, citations, permissions, and updates will be judged.
 - [`docs/plan.md`](./docs/plan.md) — decision gates and staged delivery plan.
-- [`docs/decisions.md`](./docs/decisions.md) — settled decisions and questions that remain open.
+- [`docs/decisions.md`](./docs/decisions.md) — settled decisions, resolved questions, and the process for later changes.
 
-## Current status
+## Delivery direction
 
-The concept is defined and the initial planning documents exist. The next work is to resolve the open product and technical decisions in [`docs/decisions.md`](./docs/decisions.md), prepare representative sample data and evaluation cases, and only then choose an implementation stack.
+The concept, initial dataset, evaluation cases, and implementation direction are defined. The baseline is a TypeScript application with a local SQLite-derived index and OpenRouter as the model provider. Embeddings use the official OpenRouter TypeScript SDK; grounded answers use Vercel AI SDK with the OpenRouter provider.
+
+The first implementation milestone is CLI-only. It will support content ingestion and inspection, identity-aware retrieval, evaluation, cited answers, synchronization, and machine-readable traces. The later web phase will reuse those application services to provide integrated chat, account management, content management, retrieval inspection, and synchronization views.
+
+See [`docs/plan.md`](./docs/plan.md) for the delivery gates and [`docs/decisions.md`](./docs/decisions.md) for the settled implementation choices.
+
+## Current CLI
+
+The CLI currently supports:
+
+- fixture validation and local SQLite initialization;
+- fixture identity listing and inspection;
+- independently registered local Markdown and Slack export connectors;
+- heading-aware Markdown records and thread-aware Slack records with stable checksums and IDs;
+- visible accepted and rejected index decisions;
+- separate SQLite FTS and embedding retrieval stages;
+- reciprocal-rank fusion, bounded evidence, saved traces, and project/identity filtering;
+- bounded authority, freshness, and resolution adjustments with reason ledgers;
+- versioned authorized context packs with constraints, conflicts, and explicitly unverified code leads;
+- grounded answers, deterministic citation validation, and pre-generation abstention;
+- one bounded citation-repair attempt when generated output fails deterministic validation;
+- separate persisted retrieval and answer evaluations with expected-point coverage, permission checks, usage, and timing;
+- Markdown-plus-Slack retrieval and permission evaluation; and
+- human-readable and stable JSON command output.
+
+Install and verify:
+
+```bash
+npm install
+npm run verify
+```
+
+Copy `.env.example` to `.env` and fill in the OpenRouter values for live commands. `npm run dev` loads `.env` automatically.
+
+For a complete deterministic offline baseline, with isolated state under `.primer/offline`:
+
+```bash
+npm run baseline:offline
+npm run baseline:answers:offline
+```
+
+For an interactive offline walkthrough:
+
+```bash
+npm run dev:offline -- init
+npm run dev:offline -- sources ingest
+npm run dev:offline -- retrieve "What does CC_IMPORT_017 mean?" --user u-maya --project clientcore
+npm run dev:offline -- context "Why did TalentFlow send duplicate interview reminders?" --user u-owen --project talentflow
+npm run dev:offline -- ask "What does CC_IMPORT_017 mean?" --user u-maya --project clientcore
+npm run dev:offline -- evaluate
+npm run dev:offline -- evaluate answers
+npm run dev:offline -- evaluations list
+```
+
+For the live OpenRouter baseline:
+
+```bash
+npm run baseline:live
+npm run baseline:answers:live
+npm run dev -- retrieve "What does CC_IMPORT_017 mean?" --user u-maya --project clientcore
+npm run dev -- ask "What does CC_IMPORT_017 mean?" --user u-maya --project clientcore
+npm run dev -- evaluate answers --case rf-eval-008 --case rf-eval-012
+```
+
+The live baseline sends accepted synthetic Markdown and Slack thread content to the configured OpenRouter embedding model and persists the returned vectors under `.primer/`. Re-running it with unchanged content, processor version, and embedding model reports sources as `unchanged` and does not re-embed them. Each retrieval still embeds its new query. `ask` sends only the final authorized evidence, constraints, conflicts, question, and answer rules to the configured chat model. Deterministic providers exist for repeatable tests and offline development; they are not substitutes for recorded live baselines.
+
+`baseline:answers:live` is an explicit paid/network evaluation: it runs the eligible answer cases sequentially and persists the full report in SQLite. Use repeated `--case <id>` options with `evaluate answers` to rerun only selected cases. Use `evaluations list` and `evaluations show <run-id>` with the matching live or offline command to inspect prior runs. Expected-point coverage is a deterministic token-overlap signal; cases marked for semantic review still require human or separately controlled evaluation. A failed citation check triggers at most one additional generation request, and both attempts are included in usage and timing.
 
 ## Acme development testbed
 
@@ -26,16 +92,18 @@ Primer is one of four related projects used to exercise an inspectable knowledge
 
 | Project | Role |
 |---|---|
-| **[Primer](https://github.com/eimg/primer)** | Knowledge product and fictional Acme evidence corpus; not currently part of the runtime loop. |
+| **[Primer](https://github.com/eimg/primer)** | Knowledge product and fictional Acme evidence corpus; currently separate from the runtime loop. |
 | **[Helix](https://github.com/eimg/helix)** | Agent workflow control plane that receives work and orchestrates changes. |
 | **[Acme Issues](https://github.com/eimg/acme-issues)** | Local issue tracker and webhook harness that triggers Helix and receives callbacks. |
 | **[Acme Todo](https://github.com/eimg/acme-todo)** | Disposable target application used for agent implementation and verification. |
 
-Typical development exercise: Acme Issues sends a work item to Helix, Helix works on Acme Todo, and Primer provides the separate knowledge/retrieval groundwork for the same fictional Acme context. Primer is not currently a runtime dependency of the other three projects.
+Current development exercise: Acme Issues sends a work item to Helix, and Helix works on Acme Todo. Primer remains separate while its core is built and evaluated.
 
-## Restoring the Git fixtures
+The planned relationship is intentionally directional: Acme Issues may later become an authoritative Primer source, while Helix may later query Primer for bounded, authorized internal evidence. Primer will not directly edit Acme Issues or expose its database to Helix. These integrations are planned boundaries, not current behavior and not part of the first CLI or web phases.
 
-The ClientCore and TalentFlow sample sources include their synthetic commit histories as Git bundles. A fresh clone can restore both nested read-only repositories with:
+## Restoring the code-context fixtures
+
+The ClientCore and TalentFlow fixture repositories support later Pi simulation and Helix integration evaluation; Primer does not index their source-code bodies. A fresh clone can restore both nested read-only repositories with:
 
 ```bash
 ./scripts/restore-git-fixtures.sh
