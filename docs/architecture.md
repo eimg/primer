@@ -1,6 +1,6 @@
 # Primer conceptual architecture
 
-**Status:** Phase 4 complete. The CLI, application services, SQLite index, independent connector/processor registry, registered-source synchronization/removal, Markdown and Slack processors, embedding adapters, versioned policy-adjusted traces, `primer.context.v1`, grounded answer providers, citation validation with bounded repair, abstention, and persisted retrieval/answer evaluations exist. Phase 5 adds a working HTTP adapter and then React operational surfaces; an optional Pi simulation remains later. Components are logical ownership boundaries, not separate services.
+**Status:** Phase 5 complete. The CLI and built-in Node HTTP adapters share the application services, SQLite index, connector/processor registry, registered-source lifecycle, retrieval, answer, trace, and evaluation modules. A React/Vite application consumes the HTTP API for local account and content operations. Phase 6 adds chat, trace, and evaluation presentation; an optional Pi simulation remains later. Components are logical ownership boundaries, not separate services.
 
 ## Delivery shape
 
@@ -32,9 +32,12 @@ src/cli.ts
      -> src/embeddings.ts
      -> src/ranking.ts / src/context.ts / src/answers.ts
   -> SQLite database under PRIMER_DATA_DIR
+
+src/server.ts -> src/http.ts -> the same src/services.ts
+React/Vite web application -> /api only -> src/http.ts
 ```
 
-Markdown and Slack export source processing are implemented behind independent connector registrations. Source-code bodies are deliberately outside the Primer index. Grounded answer generation and the initial-context pack are implemented; complete synchronization/removal, HTTP, React, the optional Pi simulation, and external integrations remain phase-gated.
+Markdown and Slack export source processing are implemented behind independent connector registrations. Source-code bodies are deliberately outside the Primer index. Grounded answers, initial-context packs, complete synchronization/removal, the HTTP API, and React account/content operations are implemented; web chat/inspection, the optional Pi simulation, and external integrations remain phase-gated.
 
 ## Architectural shape
 
@@ -131,8 +134,10 @@ Coordinates explicit use cases such as registering a source, synchronizing conte
 ### Delivery adapters
 
 - The CLI maps arguments, environment, exit status, human output, and stable JSON to application services.
-- The Phase 5 HTTP API maps authenticated local requests to the same services and is independently runnable and integration-tested.
-- The React UI consumes that API for chat, accounts, content, traces, synchronization, and evaluation; it never accesses SQLite directly.
+- The built-in Node HTTP API maps local session-authenticated requests to the same services, serves the production web build, and is independently runnable and integration-tested.
+- The React UI consumes that API for implemented account/content operations and later chat, traces, synchronization detail, and evaluation presentation; it never accesses SQLite directly.
+
+The local web session is an explicit MVP boundary: choosing a fixture identity creates a random session identifier stored in SQLite and delivered only through an `HttpOnly`, `SameSite=Lax` cookie. It proves identity-dependent product behavior without claiming password authentication, external federation, or production deployment hardening. Safe account discovery and health/configuration are public local endpoints; operational routes require an active session. Provider credentials never enter HTTP responses or the web bundle.
 
 No domain rule should exist only in a command handler, route, or browser component.
 

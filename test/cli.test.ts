@@ -45,7 +45,7 @@ test("CLI JSON contracts cover init, ingest, and retrieval", () => {
       policyVersion: string;
     };
     assert.equal(configResult.schemaVersion, "primer.config.v1");
-    assert.equal(configResult.storageSchemaVersion, 3);
+    assert.equal(configResult.storageSchemaVersion, 4);
     assert.equal(configResult.policyVersion, "index-v1");
 
     const registered = runCli(dataDir, [
@@ -92,7 +92,7 @@ test("CLI JSON contracts cover init, ingest, and retrieval", () => {
       evidence: Array<{ recordId: string }>;
     };
     assert.equal(trace.schemaVersion, "primer.retrieval.v3");
-    assert.equal(trace.storageSchemaVersion, 3);
+    assert.equal(trace.storageSchemaVersion, 4);
     assert.equal(trace.policyVersion, "index-v1");
     assert.equal(trace.processorVersions.markdown, "markdown-v1");
     assert.equal(trace.evidence[0]?.recordId, "md:md-cc-imports#account-owner-mapping");

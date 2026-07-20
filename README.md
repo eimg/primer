@@ -4,7 +4,7 @@ Primer is an inspectable knowledge system for turning organizational sources int
 
 Primer turns source material into authorized, ranked evidence and uses that evidence to produce cited answers. Its primary product is not a chat box. It is a trustworthy answer system with transparent decisions between ingestion and generation.
 
-Primer has completed its CLI milestone and is ready for Phase 5: a working local HTTP API followed by the first operational web surfaces. Markdown and Slack export run through independent connector/processor registrations over the same SQLite, retrieval, authorization, trace, synchronization, and evaluation services. The CLI emits versioned retrieval traces, `primer.context.v1`, grounded `primer.answer.v1` results, synchronization runs, and separately persisted evaluations. Primer supplies organizational context; source-code exploration is delegated to Helix's Pi harness in real workflows.
+Primer has completed its CLI milestone and Phase 5 local operations milestone. A working HTTP API and React interface now reuse the same SQLite, retrieval, authorization, trace, synchronization, and evaluation services as the CLI. The web application supports local identity/session selection, effective-group management, content registration, synchronization, and derived-index inspection. Phase 6 adds chat, trace, and evaluation presentation. Primer supplies organizational context; source-code exploration is delegated to Helix's Pi harness in real workflows.
 
 ## Read first
 
@@ -20,7 +20,7 @@ Primer has completed its CLI milestone and is ready for Phase 5: a working local
 
 The concept, initial dataset, evaluation cases, and implementation direction are defined. The baseline is a TypeScript application with a local SQLite-derived index and OpenRouter as the model provider. Embeddings use the official OpenRouter TypeScript SDK; grounded answers use Vercel AI SDK with the OpenRouter provider.
 
-The completed first milestone is CLI-only and supports content ingestion and inspection, identity-aware retrieval, evaluation, cited answers, synchronization, removal, and machine-readable traces. Phase 5 must first expose these same application services through a working, independently tested local HTTP API. The React UI then consumes that API for integrated account and content operations; it must not access SQLite or duplicate application behavior.
+The completed CLI milestone supports content ingestion and inspection, identity-aware retrieval, evaluation, cited answers, synchronization, removal, and machine-readable traces. Phase 5 exposed those application services through an independently tested HTTP API before adding React account and content operations. Browser code consumes only the API and has no SQLite or provider-credential access.
 
 See [`docs/plan.md`](./docs/plan.md) for the delivery gates and [`docs/decisions.md`](./docs/decisions.md) for the settled implementation choices.
 
@@ -53,6 +53,19 @@ Install and verify:
 npm install
 npm run verify
 ```
+
+## Local API and web application
+
+Run the deterministic integrated server at [http://127.0.0.1:4318](http://127.0.0.1:4318):
+
+```bash
+npm run build
+npm run dev:api:offline
+```
+
+For live provider configuration, use `npm run dev:api`. During UI development, `npm run dev:full:offline` starts the API and Vite development server together. The production build serves `dist/web` from the same Node HTTP process as `/api`.
+
+The current web milestone provides a local identity chooser, HttpOnly session cookie, effective-group editing, source registration, synchronization status/history, and indexed-source inspection. The API also exposes health and safe configuration plus account, registration, source, synchronization, trace, and evaluation list/detail operations. Chat and detailed trace/evaluation views are Phase 6 work.
 
 Copy `.env.example` to `.env` and fill in the OpenRouter values for live commands. `npm run dev` loads `.env` automatically.
 

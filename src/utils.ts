@@ -16,6 +16,10 @@ export function newSyncId(): string {
   return `sync_${randomUUID()}`;
 }
 
+export function newSessionId(): string {
+  return `session_${randomUUID()}`;
+}
+
 export function slugify(value: string): string {
   return value
     .normalize("NFKD")

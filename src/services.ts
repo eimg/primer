@@ -23,7 +23,9 @@ import {
   type FixtureUser,
   type FusedCandidate,
   type GroundedAnswer,
+  type Group,
   type IngestResult,
+  type LocalSession,
   type OrchestratorContextPack,
   type RetrievalCandidate,
   type RetrievalTrace,
@@ -34,7 +36,7 @@ import {
   type SyncTiming,
   type ValidationReport,
 } from "./types.js";
-import { checksum, elapsedMs, newSyncId, newTraceId, nowIso } from "./utils.js";
+import { checksum, elapsedMs, newSessionId, newSyncId, newTraceId, nowIso } from "./utils.js";
 
 export interface EvaluationCaseResult {
   id: string;
@@ -260,10 +262,51 @@ export class PrimerServices {
     return this.database.listUsers();
   }
 
+  listGroups(): Group[] {
+    return this.database.listGroups();
+  }
+
   getUser(id: string): FixtureUser {
     const user = this.database.getUser(id);
     if (!user) throw new Error(`Unknown user: ${id}. Run primer init first.`);
     return user;
+  }
+
+  updateUserGroups(userId: string, groupIds: string[]): FixtureUser {
+    this.getUser(userId);
+    const knownGroupIds = new Set(this.database.listGroups().map((group) => group.id));
+    const unknown = [...new Set(groupIds)].filter((groupId) => !knownGroupIds.has(groupId));
+    if (unknown.length > 0) throw new Error(`Unknown group${unknown.length > 1 ? "s" : ""}: ${unknown.join(", ")}`);
+    const updated = this.database.updateUserGroups(userId, groupIds);
+    if (!updated) throw new Error(`Unknown user: ${userId}`);
+    return updated;
+  }
+
+  createLocalSession(userId: string): { session: LocalSession; user: FixtureUser } {
+    const user = this.getUser(userId);
+    const timestamp = nowIso();
+    const session: LocalSession = {
+      id: newSessionId(),
+      userId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    this.database.createSession(session);
+    return { session, user };
+  }
+
+  getLocalSession(id: string): { session: LocalSession; user: FixtureUser } | undefined {
+    const session = this.database.getSession(id);
+    if (!session) return undefined;
+    const user = this.database.getUser(session.userId);
+    if (!user) return undefined;
+    const updatedAt = nowIso();
+    this.database.touchSession(id, updatedAt);
+    return { session: { ...session, updatedAt }, user };
+  }
+
+  deleteLocalSession(id: string): boolean {
+    return this.database.deleteSession(id);
   }
 
   listConnectors(): ReturnType<ConnectorRegistry["list"]> {

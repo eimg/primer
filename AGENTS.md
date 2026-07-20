@@ -1,6 +1,6 @@
 # Primer agent guide
 
-Primer has completed Phases 1 through 4: Markdown and Slack retrieval, policy and authorization, grounded answers, persisted evaluation, registered-source synchronization/removal, versioned traces, and CLI trust controls are implemented. The `acme-v0.1` full and later targeted live runs are preserved; `acme-v0.3` is the active verified fixture. Phase 5 must deliver and independently verify a working local HTTP API over the existing application services before React operational surfaces consume it. Browser code must not access SQLite or provider credentials. Primer does not index source-code bodies; Helix/Pi owns real repository exploration. Follow the delivery gates in `docs/plan.md`; do not skip to cross-project integration phases.
+Primer has completed Phases 1 through 5: the complete CLI pipeline, independently tested local HTTP API, local sessions/account access controls, and React content operations are implemented. The `acme-v0.1` full and later targeted live runs are preserved; `acme-v0.3` is the active verified fixture. Phase 6 adds streamed web chat plus trace and evaluation inspection over the existing API/application services. Browser code must not access SQLite or provider credentials. Primer does not index source-code bodies; Helix/Pi owns real repository exploration. Follow the delivery gates in `docs/plan.md`; do not skip to cross-project integration phases.
 
 This file is an entrypoint, not the full specification.
 
@@ -57,6 +57,8 @@ The current local runtime flow is Acme Issues → Helix → Acme Todo, followed 
 
 ```text
 src/cli.ts          CLI adapter and stable JSON surfaces
+src/http.ts         local HTTP API, HttpOnly sessions, and production web serving
+src/server.ts       API/web process entrypoint and graceful shutdown
 src/services.ts     application use cases, retrieval, fusion, evidence, evaluation
 src/database.ts     SQLite schema, record writer, FTS, traces, evaluation runs
 src/connectors/     independent acquisition contracts, registry, and local connectors
@@ -65,7 +67,8 @@ src/slack.ts        deterministic Slack thread processor
 src/fixture.ts      Acme fixture and stable-identity validator
 src/embeddings.ts   deterministic test adapter and official OpenRouter SDK adapter
 src/types.ts        domain and retrieval contracts
-test/               fixture, connector, ingestion, retrieval, authorization, evaluation, CLI tests
+web/                React/Vite account and content operations consuming only the API
+test/               fixture, connector, lifecycle, HTTP, retrieval, authorization, evaluation, CLI tests
 ```
 
 Use `node --import tsx` rather than the `tsx` executable when the environment forbids tsx's IPC listener. Normal verification is `npm run typecheck`, `npm test`, and `npm run build`.

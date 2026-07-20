@@ -148,6 +148,12 @@
 
 **Consequence:** No current connector API, phase gate, or implementation priority changes. Future native exploration must enter through an explicit connector capability and cannot bypass authorization, normalization, provenance, evidence construction, or tracing. Indexing remains valuable for cross-source retrieval, repeatability, latency, historical inspection, and sources with weak native search; it is not declared a permanent requirement for every future source.
 
+### D-024 — Use a built-in Node HTTP adapter and React/Vite web client
+
+**Decision:** Implement the local API with Node's HTTP server over `PrimerServices`, serve the production web bundle from the same process, and use React with Vite for the browser client. Local fixture identity selection creates an opaque SQLite-backed session in an `HttpOnly`, `SameSite=Lax` cookie. The browser communicates only with same-origin `/api` routes.
+
+**Consequence:** Phase 5 adds no web framework or second domain implementation. The API remains independently testable, provider credentials stay server-side, and development can run Vite through an API proxy while production uses one local process. The fixture session proves account-dependent behavior but is not represented as production authentication or external identity federation.
+
 ## Resolved product questions
 
 ### Q-002 — Who is the primary user? — Resolved by D-012 and D-018

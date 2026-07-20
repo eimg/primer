@@ -1,10 +1,10 @@
 # Primer delivery plan
 
-**Status:** Phase 5 is next. Phases 1 through 4 are complete: the CLI now covers registered Markdown and Slack content, synchronization/removal, policy and authorization, versioned traces, grounded OpenRouter answers, citation repair, and persisted evaluation. The `acme-v0.1` full baseline and targeted follow-up runs validated citation, abstention, repair, permission, and expected-point behavior; `acme-v0.3` is the active verified fixture.
+**Status:** Phase 6 is next. Phases 1 through 5 are complete: the CLI pipeline, independently tested local HTTP API, HttpOnly local sessions, account access management, and React content operations are implemented. The `acme-v0.1` full baseline and targeted follow-up runs validated citation, abstention, repair, permission, and expected-point behavior; `acme-v0.3` is the active verified fixture.
 
 The plan uses decision gates rather than calendar estimates. Each phase should leave behind inspectable artifacts and evidence, not only code.
 
-## Current phase: Phase 5 working HTTP API and web operations
+## Current phase: Phase 6 web chat, inspection, and evaluation
 
 ### Completed
 
@@ -115,6 +115,8 @@ Exit evidence:
 - documentation distinguishes implemented CLI behavior from planned web and integration behavior.
 
 ## Phase 5: local HTTP API and web operations
+
+**Status:** Complete. The Node HTTP adapter is independently integration-tested over real application services and SQLite state. It provides health/safe configuration, local session, account/group, connector/registration, content lifecycle, synchronization, trace, and evaluation list/detail operations. The React/Vite application consumes only that API for identity selection, effective access editing, content registration/synchronization, activity, and derived-index inspection. Desktop and responsive browser journeys were verified with no console warnings or errors.
 
 First expose the existing application services through a working local HTTP API and verify it independently. Then add a React application with local accounts/sessions and content operations before chat presentation. The browser must use the API for all application behavior and must never read SQLite or provider credentials directly.
 

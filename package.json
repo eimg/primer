@@ -21,15 +21,23 @@
     "docs"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "npm run build:server && npm run build:web",
+    "build:server": "tsc -p tsconfig.build.json",
+    "build:web": "vite build",
     "dev": "node --env-file=.env --import tsx src/cli.ts",
     "dev:offline": "PRIMER_DATA_DIR=.primer/offline PRIMER_EMBEDDING_PROVIDER=deterministic PRIMER_CHAT_PROVIDER=deterministic node --import tsx src/cli.ts",
+    "dev:api": "node --env-file=.env --import tsx src/server.ts",
+    "dev:api:offline": "PRIMER_DATA_DIR=.primer/web-offline PRIMER_EMBEDDING_PROVIDER=deterministic PRIMER_CHAT_PROVIDER=deterministic node --import tsx src/server.ts",
+    "dev:web": "vite",
+    "dev:full": "concurrently -k -n api,web -c green,cyan \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:full:offline": "concurrently -k -n api,web -c green,cyan \"npm run dev:api:offline\" \"npm run dev:web\"",
+    "start": "node --env-file=.env dist/server.js",
     "baseline:offline": "npm run dev:offline -- init && npm run dev:offline -- sources ingest && npm run dev:offline -- evaluate",
     "baseline:live": "npm run dev -- init && npm run dev -- sources ingest && npm run dev -- evaluate",
     "baseline:answers:offline": "npm run dev:offline -- init && npm run dev:offline -- sources ingest && npm run dev:offline -- evaluate answers",
     "baseline:answers:live": "npm run dev -- init && npm run dev -- sources ingest && npm run dev -- evaluate answers",
     "test": "node --test --import tsx test/*.test.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p web/tsconfig.json",
     "verify": "npm run typecheck && npm test && npm run build && npm audit"
   },
   "dependencies": {
@@ -37,12 +45,19 @@
     "@openrouter/sdk": "^0.13.66",
     "ai": "^7.0.31",
     "better-sqlite3": "^12.11.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "yaml": "^2.8.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.19.33",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "concurrently": "^10.0.3",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^8.1.5"
   }
 }

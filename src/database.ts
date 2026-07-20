@@ -3,8 +3,10 @@ import { dirname } from "node:path";
 import Database from "better-sqlite3";
 import type {
   FixtureUser,
+  Group,
   IndexDecision,
   KnowledgeRecord,
+  LocalSession,
   ProcessedSource,
   SourceRegistration,
   SyncRun,
@@ -98,7 +100,7 @@ export class PrimerDatabase {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
-      INSERT INTO schema_meta (key, value) VALUES ('schema_version', '3')
+      INSERT INTO schema_meta (key, value) VALUES ('schema_version', '4')
         ON CONFLICT(key) DO UPDATE SET value = excluded.value;
 
       CREATE TABLE IF NOT EXISTS groups (
@@ -213,6 +215,13 @@ export class PrimerDatabase {
         completed_at TEXT
       );
       CREATE INDEX IF NOT EXISTS idx_sync_runs_registration ON sync_runs(registration_id, started_at DESC);
+      CREATE TABLE IF NOT EXISTS web_sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_web_sessions_user ON web_sessions(user_id);
     `);
     this.addColumnIfMissing("sources", "source_family", "TEXT NOT NULL DEFAULT 'markdown'");
     this.addColumnIfMissing("sources", "registration_id", "TEXT");
@@ -220,7 +229,7 @@ export class PrimerDatabase {
     this.addColumnIfMissing("sync_runs", "owner_pid", "INTEGER");
     this.db.exec("CREATE INDEX IF NOT EXISTS idx_sources_registration ON sources(registration_id)");
     this.db
-      .prepare("INSERT INTO schema_meta (key, value) VALUES ('schema_version', '3') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+      .prepare("INSERT INTO schema_meta (key, value) VALUES ('schema_version', '4') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
       .run();
     this.markInterruptedSyncRuns();
     this.db.exec(
@@ -438,9 +447,12 @@ export class PrimerDatabase {
   }
 
   importIdentities(users: FixtureUser[], groups: Array<{ id: string; name: string }>): void {
-    const insertGroup = this.db.prepare("INSERT OR REPLACE INTO groups (id, name) VALUES (?, ?)");
+    const insertGroup = this.db.prepare(
+      "INSERT INTO groups (id, name) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name",
+    );
     const insertUser = this.db.prepare(
-      "INSERT OR REPLACE INTO users (id, name, title, email, group_ids_json) VALUES (?, ?, ?, ?, ?)",
+      `INSERT INTO users (id, name, title, email, group_ids_json) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET name = excluded.name, title = excluded.title, email = excluded.email`,
     );
     this.db.transaction(() => {
       for (const group of groups) insertGroup.run(group.id, group.name);
@@ -459,6 +471,40 @@ export class PrimerDatabase {
       email: row.email,
       groupIds: JSON.parse(row.group_ids_json) as string[],
     }));
+  }
+
+  listGroups(): Group[] {
+    return this.db.prepare("SELECT id, name FROM groups ORDER BY name").all() as Group[];
+  }
+
+  updateUserGroups(userId: string, groupIds: string[]): FixtureUser | undefined {
+    const result = this.db
+      .prepare("UPDATE users SET group_ids_json = ? WHERE id = ?")
+      .run(JSON.stringify([...new Set(groupIds)].sort()), userId);
+    return result.changes > 0 ? this.getUser(userId) : undefined;
+  }
+
+  createSession(session: LocalSession): void {
+    this.db
+      .prepare("INSERT INTO web_sessions (id, user_id, created_at, updated_at) VALUES (?, ?, ?, ?)")
+      .run(session.id, session.userId, session.createdAt, session.updatedAt);
+  }
+
+  getSession(id: string): LocalSession | undefined {
+    const row = this.db
+      .prepare("SELECT id, user_id, created_at, updated_at FROM web_sessions WHERE id = ?")
+      .get(id) as { id: string; user_id: string; created_at: string; updated_at: string } | undefined;
+    return row
+      ? { id: row.id, userId: row.user_id, createdAt: row.created_at, updatedAt: row.updated_at }
+      : undefined;
+  }
+
+  touchSession(id: string, updatedAt: string): void {
+    this.db.prepare("UPDATE web_sessions SET updated_at = ? WHERE id = ?").run(updatedAt, id);
+  }
+
+  deleteSession(id: string): boolean {
+    return this.db.prepare("DELETE FROM web_sessions WHERE id = ?").run(id).changes > 0;
   }
 
   getUser(id: string): FixtureUser | undefined {

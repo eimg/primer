@@ -1,0 +1,123 @@
+import assert from "node:assert/strict";
+import type { AddressInfo } from "node:net";
+import { join } from "node:path";
+import { test } from "node:test";
+import { createPrimerHttpApp } from "../src/http.js";
+import { createTestServices, fixtureDir } from "./helpers.js";
+
+test("HTTP API runs independently and reuses account and content application services", async () => {
+  const context = await createTestServices();
+  const app = await createPrimerHttpApp(context.services.config, {
+    services: context.services,
+    webRoot: join(context.directory, "missing-web-build"),
+  });
+  await new Promise<void>((resolve, reject) => {
+    app.server.once("error", reject);
+    app.server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = app.server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+
+  try {
+    const health = await fetch(`${baseUrl}/api/health`);
+    assert.equal(health.status, 200);
+    assert.equal((await health.json() as { status: string }).status, "ok");
+
+    const anonymousSources = await fetch(`${baseUrl}/api/sources`);
+    assert.equal(anonymousSources.status, 401);
+    assert.equal(
+      (await anonymousSources.json() as { error: { category: string } }).error.category,
+      "authorization",
+    );
+
+    const accounts = await fetch(`${baseUrl}/api/accounts`);
+    assert.equal(accounts.status, 200);
+    const accountBody = await accounts.json() as { users: unknown[]; groups: unknown[] };
+    assert.equal(accountBody.users.length, 10);
+    assert.equal(accountBody.groups.length, 11);
+
+    const signedIn = await fetch(`${baseUrl}/api/session`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId: "u-maya" }),
+    });
+    assert.equal(signedIn.status, 201);
+    const signedInBody = await signedIn.json() as { session: Record<string, unknown> };
+    assert.equal(signedInBody.session.id, undefined);
+    const cookie = signedIn.headers.get("set-cookie")?.split(";", 1)[0];
+    assert.ok(cookie?.startsWith("primer_session="));
+
+    const malformed = await fetch(`${baseUrl}/api/session`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{",
+    });
+    assert.equal(malformed.status, 400);
+    assert.equal((await malformed.json() as { error: { category: string } }).error.category, "request");
+
+    const updated = await fetch(`${baseUrl}/api/accounts/u-maya/groups`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", cookie: cookie! },
+      body: JSON.stringify({ groupIds: ["g-all", "g-clientcore", "g-support"] }),
+    });
+    assert.equal(updated.status, 200);
+    assert.deepEqual(
+      (await updated.json() as { user: { groupIds: string[] } }).user.groupIds,
+      ["g-all", "g-clientcore", "g-support"],
+    );
+    await context.services.initialize();
+    assert.deepEqual(
+      context.services.listUsers().find((user) => user.id === "u-maya")?.groupIds,
+      ["g-all", "g-clientcore", "g-support"],
+    );
+
+    const registrationResponse = await fetch(`${baseUrl}/api/sources/registrations`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: cookie! },
+      body: JSON.stringify({
+        connectorId: "markdown-local",
+        path: join(fixtureDir, "sources", "markdown", "wiki", "clientcore", "imports.md"),
+      }),
+    });
+    assert.equal(registrationResponse.status, 201);
+    const registrationId = (
+      await registrationResponse.json() as { registration: { id: string } }
+    ).registration.id;
+
+    const synchronized = await fetch(`${baseUrl}/api/sources/registrations/${registrationId}/sync`, {
+      method: "POST",
+      headers: { cookie: cookie! },
+    });
+    assert.equal(synchronized.status, 200);
+    const synchronizedBody = await synchronized.json() as { runs: Array<{ id: string; status: string }> };
+    assert.equal(synchronizedBody.runs[0]?.status, "completed");
+
+    const syncDetail = await fetch(`${baseUrl}/api/syncs/${synchronizedBody.runs[0]!.id}`, {
+      headers: { cookie: cookie! },
+    });
+    assert.equal(syncDetail.status, 200);
+    assert.equal((await syncDetail.json() as { run: { id: string } }).run.id, synchronizedBody.runs[0]!.id);
+
+    const missingTrace = await fetch(`${baseUrl}/api/traces/missing`, { headers: { cookie: cookie! } });
+    assert.equal(missingTrace.status, 404);
+    assert.equal((await missingTrace.json() as { error: { category: string } }).error.category, "not-found");
+
+    const sources = await fetch(`${baseUrl}/api/sources`, { headers: { cookie: cookie! } });
+    assert.equal(sources.status, 200);
+    assert.equal((await sources.json() as { sources: unknown[] }).sources.length, 1);
+
+    const removed = await fetch(`${baseUrl}/api/sources/registrations/${registrationId}`, {
+      method: "DELETE",
+      headers: { cookie: cookie! },
+    });
+    assert.equal(removed.status, 200);
+    assert.equal((await removed.json() as { removedSourceIds: string[] }).removedSourceIds.length, 1);
+
+    const signedOut = await fetch(`${baseUrl}/api/session`, { method: "DELETE", headers: { cookie: cookie! } });
+    assert.equal(signedOut.status, 200);
+  } finally {
+    await new Promise<void>((resolve) => app.server.close(() => resolve()));
+    app.close();
+    context.cleanup();
+  }
+});

@@ -3,7 +3,7 @@ export const CONTEXT_CONTRACT_VERSION = "primer.context.v1";
 export const ANSWER_CONTRACT_VERSION = "primer.answer.v1";
 export const ANSWER_EVALUATION_CONTRACT_VERSION = "primer.answer-evaluation.v1";
 export const APPLICATION_VERSION = "0.1.0";
-export const STORAGE_SCHEMA_VERSION = 3;
+export const STORAGE_SCHEMA_VERSION = 4;
 export const MARKDOWN_PROCESSOR_VERSION = "markdown-v1";
 export const SLACK_PROCESSOR_VERSION = "slack-thread-v1";
 export const PROCESSOR_VERSION = MARKDOWN_PROCESSOR_VERSION;
@@ -25,6 +25,18 @@ export interface FixtureUser {
   title: string;
   email: string;
   groupIds: string[];
+}
+
+export interface Group {
+  id: string;
+  name: string;
+}
+
+export interface LocalSession {
+  id: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface SourceObject {

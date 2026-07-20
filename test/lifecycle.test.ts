@@ -22,7 +22,7 @@ test("registered source synchronization accounts for unchanged, changed, removed
     const [initial] = await context.services.synchronize({ registrationId: registration.id });
     assert.equal(initial?.status, "completed");
     assert.equal(initial?.results[0]?.status, "indexed");
-    assert.equal(initial?.storageSchemaVersion, 3);
+    assert.equal(initial?.storageSchemaVersion, 4);
     assert.equal(initial?.policyVersion, "index-v1");
     assert.ok((initial?.timingMs.total ?? -1) >= 0);
 
@@ -154,7 +154,7 @@ test("a running synchronization is recovered as interrupted when the database re
       sourceFamily: "markdown",
       status: "running",
       applicationVersion: "0.1.0",
-      storageSchemaVersion: 3,
+      storageSchemaVersion: 4,
       processorVersion: "markdown-v1",
       policyVersion: "index-v1",
       embeddingModel: "deterministic/hash-256-v1",
