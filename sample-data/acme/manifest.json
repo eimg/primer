@@ -1,0 +1,30 @@
+{
+  "datasetId":"acme-v0.1",
+  "organization":"Acme Software Services",
+  "fictional":true,
+  "period":{"from":"2026-04-06","to":"2026-05-17"},
+  "mode":"frozen-initial-backfill",
+  "ingestibleSourceFamilies":["slack","git","markdown"],
+  "preparedButDeferredSourceFamilies":["email"],
+  "nonIngestibleDirectories":["organization","ground-truth","evaluation"],
+  "projects":["clientcore","talentflow","platform"],
+  "identityModel":"fixture-users-and-groups",
+  "inventory":{
+    "users":10,
+    "groups":11,
+    "canonicalEvents":18,
+    "canonicalClaims":13,
+    "slackMessages":43,
+    "emailMessages":10,
+    "markdownDocuments":10,
+    "gitRepositories":2,
+    "clientCoreTrackedFiles":8,
+    "talentFlowTrackedFiles":10,
+    "retrievalCases":15
+  },
+  "notes":[
+    "No polling, webhook, interval update, or reconciliation behavior belongs to this snapshot.",
+    "Ground-truth claims are evaluation oracle data and must not enter the knowledge index.",
+    "All people, companies, customers, incidents, and messages are fictional."
+  ]
+}

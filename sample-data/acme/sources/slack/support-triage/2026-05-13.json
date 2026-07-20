@@ -1,0 +1,8 @@
+[
+  {"type":"message","client_msg_id":"slk-sup-001","user":"U04LENA","ts":"1778668200.000100","text":"Does ClientCore automatically merge contacts when email and phone both match? I can't find an approved rule."},
+  {"type":"message","client_msg_id":"slk-sup-002","user":"U01MAYA","ts":"1778668440.000200","thread_ts":"1778668200.000100","text":"No automatic merge in current code. We flag possible duplicates for review, but I don't think that behavior is documented well enough to promise specifics."},
+  {"type":"message","client_msg_id":"slk-sup-003","user":"U05ANA","ts":"1778668680.000300","thread_ts":"1778668200.000100","text":"Agreed. Please answer that automatic merging is not supported and avoid inventing matching rules. We need a separate product decision."},
+  {"type":"message","client_msg_id":"slk-sup-004","user":"U04LENA","ts":"1778668860.000400","thread_ts":"1778668200.000100","text":"Understood. I'll say we do not have sufficient approved behavior for auto-merge."},
+  {"type":"message","client_msg_id":"slk-sup-005","user":"U09SAMIRA","ts":"1778669400.000500","text":"Separate note: TalentFlow employer search is healthy again."}
+]
+

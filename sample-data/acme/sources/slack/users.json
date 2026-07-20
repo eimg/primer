@@ -1,0 +1,13 @@
+[
+  {"id":"U01MAYA","name":"maya.chen","real_name":"Maya Chen","profile":{"email":"maya.chen@acme.test","title":"Senior ClientCore Engineer"}},
+  {"id":"U02OWEN","name":"owen.park","real_name":"Owen Park","profile":{"email":"owen.park@acme.test","title":"Senior TalentFlow Engineer"}},
+  {"id":"U03PRIYA","name":"priya.nair","real_name":"Priya Nair","profile":{"email":"priya.nair@acme.test","title":"Platform Engineering Lead"}},
+  {"id":"U04LENA","name":"lena.morales","real_name":"Lena Morales","profile":{"email":"lena.morales@acme.test","title":"Customer Support Lead"}},
+  {"id":"U05ANA","name":"ana.silva","real_name":"Ana Silva","profile":{"email":"ana.silva@acme.test","title":"Product Manager"}},
+  {"id":"U06MARCUS","name":"marcus.bell","real_name":"Marcus Bell","profile":{"email":"marcus.bell@acme.test","title":"Implementation Consultant"}},
+  {"id":"U07ELI","name":"eli.turner","real_name":"Eli Turner","profile":{"email":"eli.turner@acme.test","title":"Security Engineer"}},
+  {"id":"U08NOAH","name":"noah.price","real_name":"Noah Price","profile":{"email":"noah.price@acme.test","title":"Finance Director"}},
+  {"id":"U09SAMIRA","name":"samira.khan","real_name":"Samira Khan","profile":{"email":"samira.khan@acme.test","title":"Recruiter Success Manager"}},
+  {"id":"UBOT","name":"relaybot","real_name":"AcmeBot","is_bot":true}
+]
+

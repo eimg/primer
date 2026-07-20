@@ -1,0 +1,13 @@
+Message-ID: <mail-007@acme.test>
+Date: Wed, 22 Apr 2026 12:05:00 +0000
+From: Samira Khan <samira.khan@acme.test>
+To: Owen Park <owen.park@acme.test>, Lena Morales <lena.morales@acme.test>
+Subject: TF-184 customer impact summary
+Content-Type: text/plain; charset=UTF-8
+
+We have 37 duplicated interview reminder deliveries across nine employer tenants. The interviews and application records themselves are not duplicated.
+
+Support needs to know whether to describe this as a queue timing problem or a mail retry problem.
+
+Samira
+

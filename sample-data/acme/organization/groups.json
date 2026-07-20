@@ -1,0 +1,14 @@
+[
+  {"id":"g-all","name":"All Acme"},
+  {"id":"g-engineering","name":"Engineering"},
+  {"id":"g-clientcore","name":"ClientCore"},
+  {"id":"g-talentflow","name":"TalentFlow"},
+  {"id":"g-platform","name":"Shared Platform"},
+  {"id":"g-support","name":"Customer Support"},
+  {"id":"g-product","name":"Product"},
+  {"id":"g-implementation","name":"Implementation Services"},
+  {"id":"g-security","name":"Security"},
+  {"id":"g-finance","name":"Finance"},
+  {"id":"g-leadership","name":"Leadership"}
+]
+

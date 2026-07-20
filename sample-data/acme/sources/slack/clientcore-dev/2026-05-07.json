@@ -1,0 +1,9 @@
+[
+  {"type":"message","client_msg_id":"slk-cc-015","user":"U04LENA","ts":"1778147100.000100","text":"Confirming exact meaning of CC_IMPORT_017 before I update a customer: is it any owner problem, or specifically an unknown email?"},
+  {"type":"message","client_msg_id":"slk-cc-016","user":"U01MAYA","ts":"1778147280.000200","thread_ts":"1778147100.000100","text":"Specifically: owner_email was supplied but does not match an active user in that tenant."},
+  {"type":"message","client_msg_id":"slk-cc-017","user":"U04LENA","ts":"1778147460.000300","thread_ts":"1778147100.000100","text":"Blank owner_email does not trigger it?"},
+  {"type":"message","client_msg_id":"slk-cc-018","user":"U01MAYA","ts":"1778147580.000400","thread_ts":"1778147100.000100","text":"Correct. Blank or absent assigns the importing user. Only an explicit invalid value gets CC_IMPORT_017."},
+  {"type":"message","client_msg_id":"slk-cc-019","user":"U06MARCUS","ts":"1778147820.000500","thread_ts":"1778147100.000100","text":"That distinction matches what I saw in the Northwind dry run."},
+  {"type":"message","client_msg_id":"slk-cc-020","user":"UBOT","ts":"1778151600.000600","text":"clientcore dependency scan completed with no critical findings."}
+]
+

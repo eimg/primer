@@ -1,0 +1,15 @@
+Message-ID: <mail-006@acme.test>
+Date: Mon, 27 Apr 2026 15:42:00 +0000
+From: Owen Park <owen.park@acme.test>
+To: Eli Turner <eli.turner@acme.test>, Priya Nair <priya.nair@acme.test>
+Subject: Re: Resume signed URL lifetime
+In-Reply-To: <mail-005@acme.test>
+References: <mail-005@acme.test>
+Content-Type: text/plain; charset=UTF-8
+
+Implemented at 300 seconds and scoped to resume plus employer tenant. The audit event records that access was issued, but not the signed URL itself.
+
+The fifteen-minute prototype value is removed. The maintained policy page now says five minutes.
+
+Owen
+

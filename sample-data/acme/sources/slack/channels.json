@@ -1,0 +1,8 @@
+[
+  {"id":"C-CC-DEV","name":"clientcore-dev","created":1775404800,"creator":"U03PRIYA","is_archived":false,"is_general":false,"members":["U01MAYA","U03PRIYA","U04LENA","U05ANA","U06MARCUS"],"topic":{"value":"ClientCore engineering and incident discussion"}},
+  {"id":"C-TF-DEV","name":"talentflow-dev","created":1775404800,"creator":"U03PRIYA","is_archived":false,"is_general":false,"members":["U02OWEN","U03PRIYA","U04LENA","U05ANA","U07ELI","U09SAMIRA"],"topic":{"value":"TalentFlow engineering and incident discussion"}},
+  {"id":"C-PLATFORM","name":"platform","created":1775404800,"creator":"U03PRIYA","is_archived":false,"is_general":false,"members":["U01MAYA","U02OWEN","U03PRIYA","U07ELI"],"topic":{"value":"Shared platform contracts and operations"}},
+  {"id":"C-SUPPORT","name":"support-triage","created":1775404800,"creator":"U04LENA","is_archived":false,"is_general":false,"members":["U01MAYA","U02OWEN","U04LENA","U06MARCUS","U09SAMIRA"],"topic":{"value":"Cross-product customer issue triage"}},
+  {"id":"C-GENERAL","name":"general","created":1775404800,"creator":"U05ANA","is_archived":false,"is_general":true,"members":["U01MAYA","U02OWEN","U03PRIYA","U04LENA","U05ANA","U06MARCUS","U07ELI","U08NOAH","U09SAMIRA"],"topic":{"value":"Company announcements and discussion"}}
+]
+

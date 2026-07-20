@@ -1,0 +1,13 @@
+Message-ID: <mail-003@acme.test>
+Date: Tue, 14 Apr 2026 08:35:00 +0000
+From: Marcus Bell <marcus.bell@acme.test>
+To: Maya Chen <maya.chen@acme.test>, Priya Nair <priya.nair@acme.test>
+Subject: Northwind activity cleanup rule
+Content-Type: text/plain; charset=UTF-8
+
+Northwind's repeated backfill produced apparent duplicate calls. Their consultant suggested removing any two activities with the same timestamp.
+
+Can I apply that rule to the cleanup file, or should we wait for a stable vendor identifier?
+
+Marcus
+

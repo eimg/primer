@@ -1,0 +1,15 @@
+Message-ID: <mail-004@acme.test>
+Date: Tue, 14 Apr 2026 09:10:00 +0000
+From: Priya Nair <priya.nair@acme.test>
+To: Marcus Bell <marcus.bell@acme.test>, Maya Chen <maya.chen@acme.test>
+Subject: Re: Northwind activity cleanup rule
+In-Reply-To: <mail-003@acme.test>
+References: <mail-003@acme.test>
+Content-Type: text/plain; charset=UTF-8
+
+Do not delete by timestamp. Two legitimate calls can occur in the same second.
+
+The accepted identity will be tenant ID plus the source event ID. Maya is recording this as ADR-014 and CC-214 will enforce it. Until the source event IDs are available, quarantine the questionable rows rather than guessing.
+
+Priya
+

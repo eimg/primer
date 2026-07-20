@@ -1,0 +1,9 @@
+{
+  "C-CC-DEV":{"projectId":"clientcore","access":{"visibility":"group","allowedGroupIds":["g-clientcore","g-support"]}},
+  "C-TF-DEV":{"projectId":"talentflow","access":{"visibility":"group","allowedGroupIds":["g-talentflow","g-support"]}},
+  "C-PLATFORM":{"projectId":"platform","access":{"visibility":"group","allowedGroupIds":["g-engineering","g-platform"]}},
+  "C-SUPPORT":{"projectId":"platform","access":{"visibility":"group","allowedGroupIds":["g-support","g-clientcore","g-talentflow"]}},
+  "C-GENERAL":{"projectId":"platform","access":{"visibility":"public","allowedGroupIds":["g-all"]}},
+  "G-LEADERSHIP":{"projectId":"platform","access":{"visibility":"restricted","allowedGroupIds":["g-leadership"],"allowedUserIds":[]}}
+}
+

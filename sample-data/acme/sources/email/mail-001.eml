@@ -1,0 +1,15 @@
+Message-ID: <mail-001@acme.test>
+Date: Wed, 08 Apr 2026 10:02:00 +0000
+From: Ana Silva <ana.silva@acme.test>
+To: Owen Park <owen.park@acme.test>, Samira Khan <samira.khan@acme.test>
+Subject: Decision needed: withdrawn application behavior
+Content-Type: text/plain; charset=UTF-8
+
+We need one documented answer for employers asking to restore an application after the candidate withdrew it.
+
+My proposal is that withdrawal remains candidate-controlled and terminal. An employer should not be able to reverse it. If the candidate returns while the job is open, they submit a new application and the old one remains in audit history.
+
+Please confirm whether current code can enforce this before I approve the lifecycle note.
+
+Ana
+

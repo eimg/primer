@@ -1,0 +1,10 @@
+[
+  {"type":"message","client_msg_id":"slk-cc-001","user":"U06MARCUS","ts":"1775467800.000100","text":"For tomorrow's Northwind import: if their CSV has no owner_email column, who gets the accounts?"},
+  {"type":"message","client_msg_id":"slk-cc-002","user":"U01MAYA","ts":"1775467920.000200","thread_ts":"1775467800.000100","text":"The importing user. That's the existing mapOwner behavior."},
+  {"type":"message","client_msg_id":"slk-cc-003","user":"U06MARCUS","ts":"1775468040.000300","thread_ts":"1775467800.000100","text":"And if the column exists but one email is mistyped?"},
+  {"type":"message","client_msg_id":"slk-cc-004","user":"U01MAYA","ts":"1775468160.000400","thread_ts":"1775467800.000100","text":"That row must fail. We should not silently assign the importer when an explicit owner is invalid. I'll make the error identifier visible in the runbook."},
+  {"type":"message","client_msg_id":"slk-cc-005","user":"U04LENA","ts":"1775468400.000500","thread_ts":"1775467800.000100","text":"Please include the exact code in the support note. Customers paste those into tickets."},
+  {"type":"message","client_msg_id":"slk-cc-006","user":"U01MAYA","ts":"1775468520.000600","thread_ts":"1775467800.000100","text":"Will do. Current code is CC_IMPORT_017 for unknown owner email."},
+  {"type":"message","client_msg_id":"slk-cc-007","user":"UBOT","ts":"1775472000.000700","text":"Daily build succeeded for clientcore/main at 9f3c201."}
+]
+

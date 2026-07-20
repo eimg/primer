@@ -1,0 +1,7 @@
+[
+  {"type":"message","client_msg_id":"slk-lead-001","user":"U05ANA","ts":"1778491800.000100","text":"Restricted exploration: two enterprise prospects asked for compensation analytics in TalentFlow."},
+  {"type":"message","client_msg_id":"slk-lead-002","user":"U08NOAH","ts":"1778492040.000200","thread_ts":"1778491800.000100","text":"No pricing or revenue forecast should leave this channel. We have not approved the feature."},
+  {"type":"message","client_msg_id":"slk-lead-003","user":"U03PRIYA","ts":"1778492280.000300","thread_ts":"1778491800.000100","text":"Engineering has no implementation scheduled. At most this is a discovery proposal."},
+  {"type":"message","client_msg_id":"slk-lead-004","user":"U05ANA","ts":"1778492520.000400","thread_ts":"1778491800.000100","text":"Recorded as proposed and restricted, not roadmap commitment."}
+]
+

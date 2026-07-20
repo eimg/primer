@@ -1,0 +1,9 @@
+[
+  {"type":"message","client_msg_id":"slk-tf-009","user":"U02OWEN","ts":"1777022100.000100","text":"TF-184 fix is merged. retryNotification now preserves notification.id on every gateway attempt."},
+  {"type":"message","client_msg_id":"slk-tf-010","user":"U03PRIYA","ts":"1777022280.000200","thread_ts":"1777022100.000100","text":"Did the regression simulate the first call returning 503?"},
+  {"type":"message","client_msg_id":"slk-tf-011","user":"U02OWEN","ts":"1777022460.000300","thread_ts":"1777022100.000100","text":"Yes. It asserts both captured calls have the same idempotencyKey. Timeout stays 90 seconds."},
+  {"type":"message","client_msg_id":"slk-tf-012","user":"U09SAMIRA","ts":"1777022700.000400","thread_ts":"1777022100.000100","text":"All 37 affected reminder records are identified. No further duplicates since deploy."},
+  {"type":"message","client_msg_id":"slk-tf-013","user":"U03PRIYA","ts":"1777022880.000500","thread_ts":"1777022100.000100","text":"Marking resolved. The incident note should explicitly keep the initial queue theory as ruled out."},
+  {"type":"message","client_msg_id":"slk-tf-014","user":"U02OWEN","ts":"1777023120.000600","thread_ts":"1777022100.000100","text":"Done in TF-184."}
+]
+

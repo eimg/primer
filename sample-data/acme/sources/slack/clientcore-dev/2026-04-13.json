@@ -1,0 +1,10 @@
+[
+  {"type":"message","client_msg_id":"slk-cc-008","user":"U06MARCUS","ts":"1776071400.000100","text":"We have duplicate activities after the Northwind backfill. Could we drop rows when another activity has the same timestamp?"},
+  {"type":"message","client_msg_id":"slk-cc-009","user":"U01MAYA","ts":"1776071520.000200","thread_ts":"1776071400.000100","text":"Maybe as a quick cleanup, but I don't want that as the import rule yet."},
+  {"type":"message","client_msg_id":"slk-cc-010","user":"U03PRIYA","ts":"1776071760.000300","thread_ts":"1776071400.000100","text":"Timestamp alone is unsafe. A call system can emit two legitimate events in the same second."},
+  {"type":"message","client_msg_id":"slk-cc-011","user":"U01MAYA","ts":"1776071940.000400","thread_ts":"1776071400.000100","text":"Agreed. The vendor payload has event_id. Tenant plus source event ID should be stable across a repeated backfill."},
+  {"type":"message","client_msg_id":"slk-cc-012","user":"U03PRIYA","ts":"1776072180.000500","thread_ts":"1776071400.000100","text":"Decision: reject timestamp dedupe. Use (tenant_id, source_event_id), document it in ADR-014, and cover same-timestamp distinct events."},
+  {"type":"message","client_msg_id":"slk-cc-013","user":"U04LENA","ts":"1776072600.000600","thread_ts":"1776071400.000100","text":"That also gives support a clean explanation for why we need the vendor event ID."},
+  {"type":"message","client_msg_id":"slk-cc-014","user":"UBOT","ts":"1776076200.000700","text":"Reminder: engineering demo begins in 10 minutes."}
+]
+

@@ -1,0 +1,8 @@
+{
+  "sourceId":"git-clientcore",
+  "repository":"acme/clientcore",
+  "projectId":"clientcore",
+  "defaultBranch":"main",
+  "snapshotAt":"2026-05-17T18:00:00Z",
+  "access":{"visibility":"group","allowedGroupIds":["g-clientcore","g-engineering"]}
+}

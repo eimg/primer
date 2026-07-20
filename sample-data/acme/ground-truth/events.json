@@ -1,0 +1,21 @@
+[
+  {"id":"evt-001","date":"2026-04-06","projectId":"clientcore","summary":"ClientCore bulk import maps an absent owner column to the importing user.","claimIds":["clm-cc-import-owner"],"sourcePlan":["markdown","git","slack"]},
+  {"id":"evt-002","date":"2026-04-08","projectId":"talentflow","summary":"TalentFlow defines application withdrawn as terminal and not reopenable by employers.","claimIds":["clm-tf-withdrawn-terminal"],"sourcePlan":["markdown","git","email"]},
+  {"id":"evt-003","date":"2026-04-10","projectId":"platform","summary":"The shared mail gateway documents request keys, but TalentFlow does not yet pass one during retry.","claimIds":["clm-tf-retry-root-cause"],"sourcePlan":["slack","git"]},
+  {"id":"evt-004","date":"2026-04-13","projectId":"clientcore","summary":"A proposal suggests deleting duplicate CRM activities by timestamp alone.","claimIds":["clm-cc-activity-dedupe"],"sourcePlan":["slack"]},
+  {"id":"evt-005","date":"2026-04-14","projectId":"clientcore","summary":"The timestamp-only proposal is rejected because legitimate calls can share a timestamp.","claimIds":["clm-cc-activity-dedupe"],"sourcePlan":["slack","email"]},
+  {"id":"evt-006","date":"2026-04-16","projectId":"clientcore","summary":"CC-214 adopts source event ID plus tenant ID as the activity deduplication key.","claimIds":["clm-cc-activity-dedupe"],"sourcePlan":["git","markdown","slack"]},
+  {"id":"evt-007","date":"2026-04-20","projectId":"talentflow","summary":"Customers report duplicate interview reminder emails after transient gateway failures.","claimIds":["clm-tf-retry-root-cause"],"sourcePlan":["slack","email"]},
+  {"id":"evt-008","date":"2026-04-21","projectId":"talentflow","summary":"The team initially suspects the queue visibility timeout.","claimIds":["clm-tf-retry-root-cause"],"sourcePlan":["slack"]},
+  {"id":"evt-009","date":"2026-04-22","projectId":"talentflow","summary":"TF-184 identifies missing idempotency key forwarding in retryNotification as the duplicate-email cause.","claimIds":["clm-tf-retry-root-cause","clm-tf-exact-symbol"],"sourcePlan":["slack","git","markdown"]},
+  {"id":"evt-010","date":"2026-04-24","projectId":"talentflow","summary":"TF-184 is fixed and regression-tested; queue visibility timeout remains 90 seconds.","claimIds":["clm-tf-retry-root-cause","clm-tf-queue-timeout"],"sourcePlan":["git","markdown"]},
+  {"id":"evt-011","date":"2026-04-27","projectId":"platform","summary":"Security restricts candidate resume download URLs to five minutes.","claimIds":["clm-tf-resume-url-ttl"],"sourcePlan":["email","markdown","git"]},
+  {"id":"evt-012","date":"2026-04-29","projectId":"clientcore","summary":"ClientCore account archival hides accounts from default search but preserves activities for audit.","claimIds":["clm-cc-archive-behavior"],"sourcePlan":["markdown","git","slack"]},
+  {"id":"evt-013","date":"2026-05-01","projectId":"talentflow","summary":"TalentFlow employer account suspension blocks new job posts without hiding existing public listings.","claimIds":["clm-tf-suspension-behavior"],"sourcePlan":["markdown","git","email"]},
+  {"id":"evt-014","date":"2026-05-05","projectId":"platform","summary":"An old onboarding page still says all products use a 60-second queue visibility timeout.","claimIds":["clm-tf-queue-timeout"],"sourcePlan":["markdown"]},
+  {"id":"evt-015","date":"2026-05-07","projectId":"clientcore","summary":"ClientCore CSV import error code CC_IMPORT_017 is confirmed to mean unknown owner email.","claimIds":["clm-cc-import-error"],"sourcePlan":["git","markdown","slack"]},
+  {"id":"evt-016","date":"2026-05-11","projectId":"talentflow","summary":"Leadership discusses an unreleased enterprise compensation analytics feature under restricted access.","claimIds":["clm-restricted-compensation"],"sourcePlan":["email","slack"]},
+  {"id":"evt-017","date":"2026-05-13","projectId":"clientcore","summary":"Support asks whether ClientCore supports automatic contact merging; the team confirms there is insufficient approved behavior.","claimIds":["clm-contact-auto-merge-unknown"],"sourcePlan":["slack"]},
+  {"id":"evt-018","date":"2026-05-15","projectId":"platform","summary":"A maintained terminology page clarifies project-specific meanings of account and status.","claimIds":["clm-account-term-scope"],"sourcePlan":["markdown"]}
+]
+

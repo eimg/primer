@@ -1,0 +1,11 @@
+[
+  {"type":"message","client_msg_id":"slk-tf-001","user":"U09SAMIRA","ts":"1776763800.000100","text":"Three employers say candidates received the interview reminder twice. Ticket cluster TF-184."},
+  {"type":"message","client_msg_id":"slk-tf-002","user":"U02OWEN","ts":"1776763920.000200","thread_ts":"1776763800.000100","text":"First thought: queue visibility may be too short, so a worker could pick up the message while the first send is still running."},
+  {"type":"message","client_msg_id":"slk-tf-003","user":"U03PRIYA","ts":"1776764100.000300","thread_ts":"1776763800.000100","text":"Check timings before changing it. TalentFlow is configured differently from the old platform onboarding page."},
+  {"type":"message","client_msg_id":"slk-tf-004","user":"U02OWEN","ts":"1776764520.000400","thread_ts":"1776763800.000100","text":"Visibility is 90s and the affected jobs finished within 12s. That theory does not fit."},
+  {"type":"message","client_msg_id":"slk-tf-005","user":"U02OWEN","ts":"1776765000.000500","thread_ts":"1776763800.000100","text":"Found a stronger lead: retryNotification calls the gateway again after 503 but does not forward notification.id as idempotencyKey."},
+  {"type":"message","client_msg_id":"slk-tf-006","user":"U03PRIYA","ts":"1776765240.000600","thread_ts":"1776763800.000100","text":"That matches the duplicate provider submissions. Treat missing idempotency forwarding as the root cause; queue timeout is ruled out."},
+  {"type":"message","client_msg_id":"slk-tf-007","user":"U04LENA","ts":"1776765480.000700","thread_ts":"1776763800.000100","text":"I'll tell support we have a contained notification issue, not duplicated interviews."},
+  {"type":"message","client_msg_id":"slk-tf-008","user":"UBOT","ts":"1776769200.000800","text":"talentflow staging deployment completed."}
+]
+

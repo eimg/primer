@@ -1,0 +1,13 @@
+Message-ID: <mail-005@acme.test>
+Date: Mon, 27 Apr 2026 13:20:00 +0000
+From: Eli Turner <eli.turner@acme.test>
+To: Owen Park <owen.park@acme.test>, Priya Nair <priya.nair@acme.test>
+Subject: Resume signed URL lifetime
+Content-Type: text/plain; charset=UTF-8
+
+The prototype still creates candidate resume links with a fifteen-minute lifetime. Because these links expose applicant documents outside the authenticated page request, Security wants a five-minute maximum.
+
+The URL must be bound to one resume object and employer tenant. Please also confirm it is not written to analytics or support logs.
+
+Eli
+

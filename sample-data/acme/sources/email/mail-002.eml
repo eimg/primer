@@ -1,0 +1,15 @@
+Message-ID: <mail-002@acme.test>
+Date: Wed, 08 Apr 2026 11:14:00 +0000
+From: Owen Park <owen.park@acme.test>
+To: Ana Silva <ana.silva@acme.test>, Samira Khan <samira.khan@acme.test>
+Subject: Re: Decision needed: withdrawn application behavior
+In-Reply-To: <mail-001@acme.test>
+References: <mail-001@acme.test>
+Content-Type: text/plain; charset=UTF-8
+
+Confirmed. The transition guard already treats withdrawn as terminal for employer actions. I added a test using APPLICATION_WITHDRAWN_TERMINAL so the exact reason remains searchable.
+
+I agree with the proposal: a returning candidate creates a new application. We should not mutate the withdrawn record.
+
+Owen
+

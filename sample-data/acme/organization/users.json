@@ -1,0 +1,13 @@
+[
+  {"id":"u-maya","name":"Maya Chen","title":"Senior ClientCore Engineer","email":"maya.chen@acme.test","groupIds":["g-all","g-engineering","g-clientcore"]},
+  {"id":"u-owen","name":"Owen Park","title":"Senior TalentFlow Engineer","email":"owen.park@acme.test","groupIds":["g-all","g-engineering","g-talentflow"]},
+  {"id":"u-priya","name":"Priya Nair","title":"Platform Engineering Lead","email":"priya.nair@acme.test","groupIds":["g-all","g-engineering","g-platform","g-clientcore","g-talentflow","g-leadership"]},
+  {"id":"u-lena","name":"Lena Morales","title":"Customer Support Lead","email":"lena.morales@acme.test","groupIds":["g-all","g-support","g-clientcore","g-talentflow"]},
+  {"id":"u-ana","name":"Ana Silva","title":"Product Manager","email":"ana.silva@acme.test","groupIds":["g-all","g-product","g-clientcore","g-talentflow"]},
+  {"id":"u-marcus","name":"Marcus Bell","title":"Implementation Consultant","email":"marcus.bell@acme.test","groupIds":["g-all","g-implementation","g-clientcore"]},
+  {"id":"u-eli","name":"Eli Turner","title":"Security Engineer","email":"eli.turner@acme.test","groupIds":["g-all","g-engineering","g-platform","g-security"]},
+  {"id":"u-noah","name":"Noah Price","title":"Finance Director","email":"noah.price@acme.test","groupIds":["g-all","g-finance","g-leadership"]},
+  {"id":"u-samira","name":"Samira Khan","title":"TalentFlow Recruiter Success Manager","email":"samira.khan@acme.test","groupIds":["g-all","g-support","g-talentflow"]},
+  {"id":"u-bot","name":"AcmeBot","title":"Automation","email":"relaybot@acme.test","groupIds":["g-all"]}
+]
+

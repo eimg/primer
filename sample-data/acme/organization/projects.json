@@ -1,0 +1,26 @@
+[
+  {
+    "id":"clientcore",
+    "code":"CC",
+    "name":"ClientCore",
+    "description":"Multi-tenant CRM for accounts, contacts, deals, activities, and customer imports.",
+    "repository":"acme/clientcore",
+    "defaultGroupId":"g-clientcore"
+  },
+  {
+    "id":"talentflow",
+    "code":"TF",
+    "name":"TalentFlow",
+    "description":"Multi-tenant job portal for employers, candidates, applications, interviews, and notifications.",
+    "repository":"acme/talentflow",
+    "defaultGroupId":"g-talentflow"
+  },
+  {
+    "id":"platform",
+    "code":"PLAT",
+    "name":"Shared Platform",
+    "description":"Identity, outbound email, audit events, file storage, and tenant configuration shared by both products.",
+    "defaultGroupId":"g-platform"
+  }
+]
+

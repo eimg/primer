@@ -1,0 +1,16 @@
+[
+  {"id":"clm-cc-import-owner","projectId":"clientcore","canonical":"When the owner column is absent, a ClientCore import assigns the importing user. An explicitly supplied unknown owner email fails with CC_IMPORT_017.","status":"current","authority":"implemented-and-documented"},
+  {"id":"clm-tf-withdrawn-terminal","projectId":"talentflow","canonical":"A withdrawn application is terminal and cannot be reopened by an employer.","status":"current","authority":"approved-policy"},
+  {"id":"clm-cc-activity-dedupe","projectId":"clientcore","canonical":"Imported activities are deduplicated by tenant ID and source event ID, not timestamp alone.","status":"current","authority":"implemented-and-documented"},
+  {"id":"clm-tf-retry-root-cause","projectId":"talentflow","canonical":"Duplicate interview reminders were caused by retryNotification omitting the gateway idempotency key, not by queue visibility timeout.","status":"resolved","authority":"resolved-incident"},
+  {"id":"clm-tf-exact-symbol","projectId":"talentflow","canonical":"The relevant TalentFlow retry symbol is retryNotification in src/notifications/retry.ts.","status":"current","authority":"merged-code"},
+  {"id":"clm-tf-queue-timeout","projectId":"talentflow","canonical":"TalentFlow notification jobs use a 90-second visibility timeout.","status":"current","authority":"merged-code"},
+  {"id":"clm-tf-resume-url-ttl","projectId":"talentflow","canonical":"Candidate resume download URLs expire after five minutes.","status":"current","authority":"security-policy"},
+  {"id":"clm-cc-archive-behavior","projectId":"clientcore","canonical":"Archived ClientCore accounts are excluded from default search, while their activities remain available for audit.","status":"current","authority":"implemented-and-documented"},
+  {"id":"clm-tf-suspension-behavior","projectId":"talentflow","canonical":"Suspending a TalentFlow employer blocks new job posts but does not hide existing public listings.","status":"current","authority":"approved-policy"},
+  {"id":"clm-cc-import-error","projectId":"clientcore","canonical":"CC_IMPORT_017 means an explicitly supplied owner email does not match an active ClientCore user.","status":"current","authority":"implemented-and-documented"},
+  {"id":"clm-restricted-compensation","projectId":"talentflow","canonical":"Enterprise compensation analytics is an unreleased restricted proposal.","status":"proposed","authority":"restricted-leadership"},
+  {"id":"clm-contact-auto-merge-unknown","projectId":"clientcore","canonical":"The fixture contains no approved or implemented automatic contact-merge behavior.","status":"insufficient-evidence","authority":"evaluation-oracle"},
+  {"id":"clm-account-term-scope","projectId":"platform","canonical":"Account is project-scoped: a customer company in ClientCore and an employer login/tenant relationship in TalentFlow.","status":"current","authority":"maintained-glossary"}
+]
+

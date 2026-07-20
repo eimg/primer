@@ -1,0 +1,13 @@
+{
+  "mail-001":{"projectId":"talentflow","access":{"visibility":"group","allowedGroupIds":["g-talentflow","g-product","g-support"]}},
+  "mail-002":{"projectId":"talentflow","access":{"visibility":"group","allowedGroupIds":["g-talentflow","g-product","g-support"]}},
+  "mail-003":{"projectId":"clientcore","access":{"visibility":"group","allowedGroupIds":["g-clientcore","g-engineering","g-implementation"]}},
+  "mail-004":{"projectId":"clientcore","access":{"visibility":"group","allowedGroupIds":["g-clientcore","g-engineering","g-implementation"]}},
+  "mail-005":{"projectId":"talentflow","access":{"visibility":"group","allowedGroupIds":["g-talentflow","g-security"]}},
+  "mail-006":{"projectId":"talentflow","access":{"visibility":"group","allowedGroupIds":["g-talentflow","g-security"]}},
+  "mail-007":{"projectId":"talentflow","access":{"visibility":"group","allowedGroupIds":["g-talentflow","g-support"]}},
+  "mail-008":{"projectId":"talentflow","access":{"visibility":"group","allowedGroupIds":["g-talentflow","g-support"]}},
+  "mail-009":{"projectId":"talentflow","access":{"visibility":"restricted","allowedGroupIds":["g-leadership","g-finance"]}},
+  "mail-010":{"projectId":"talentflow","access":{"visibility":"restricted","allowedGroupIds":["g-leadership","g-finance"]}}
+}
+

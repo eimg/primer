@@ -1,0 +1,15 @@
+Message-ID: <mail-008@acme.test>
+Date: Wed, 22 Apr 2026 14:28:00 +0000
+From: Owen Park <owen.park@acme.test>
+To: Samira Khan <samira.khan@acme.test>, Lena Morales <lena.morales@acme.test>
+Subject: Re: TF-184 customer impact summary
+In-Reply-To: <mail-007@acme.test>
+References: <mail-007@acme.test>
+Content-Type: text/plain; charset=UTF-8
+
+Describe it as a mail retry defect. retryNotification omitted the stable idempotency key after a transient gateway failure.
+
+We checked the queue theory: visibility is 90 seconds and affected jobs completed well before that. It was not the cause.
+
+Owen
+
