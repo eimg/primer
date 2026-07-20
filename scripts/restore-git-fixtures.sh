@@ -7,7 +7,7 @@ restore_fixture() {
   fixture_dir=$1
   bundle_path="$fixture_dir/.primer/history.bundle"
 
-  if git -C "$fixture_dir" rev-parse --git-dir >/dev/null 2>&1; then
+  if [ -d "$fixture_dir/.git" ]; then
     echo "already restored: $fixture_dir"
     return
   fi
