@@ -22,14 +22,14 @@ The concept is defined and the initial planning documents exist. The next work i
 
 ## Acme development testbed
 
-Primer is one of four related local projects used to exercise an inspectable knowledge-to-development workflow. They remain separate products with separate responsibilities.
+Primer is one of four related projects used to exercise an inspectable knowledge-to-development workflow. They remain separate products with separate responsibilities.
 
-| Project | Local path | Role |
-|---|---|---|
-| **Primer** | `~/Desktop/acme/primer` | Knowledge product and fictional Acme evidence corpus; not currently part of the runtime loop. |
-| **Helix** | `~/Desktop/acme/helix` | Agent workflow control plane that receives work and orchestrates changes. |
-| **Acme Issues** | `~/Desktop/acme/acme-issues` | Local issue tracker and webhook harness that triggers Helix and receives callbacks. |
-| **Acme Todo** | `~/Desktop/acme/acme-todo` | Disposable target application used for agent implementation and verification. |
+| Project | Role |
+|---|---|
+| **[Primer](https://github.com/eimg/primer)** | Knowledge product and fictional Acme evidence corpus; not currently part of the runtime loop. |
+| **[Helix](https://github.com/eimg/helix)** | Agent workflow control plane that receives work and orchestrates changes. |
+| **[Acme Issues](https://github.com/eimg/acme-issues)** | Local issue tracker and webhook harness that triggers Helix and receives callbacks. |
+| **[Acme Todo](https://github.com/eimg/acme-todo)** | Disposable target application used for agent implementation and verification. |
 
 Typical development exercise: Acme Issues sends a work item to Helix, Helix works on Acme Todo, and Primer provides the separate knowledge/retrieval groundwork for the same fictional Acme context. Primer is not currently a runtime dependency of the other three projects.
 
