@@ -1,10 +1,10 @@
 # Primer delivery plan
 
-**Status:** Phase 4 implementation active. Phases 1 through 3 are complete: Markdown and Slack retrieval, policy ranking, authorization regression coverage, `primer.context.v1`, grounded OpenRouter answers, citation repair, and persisted evaluation are implemented. The `acme-v0.1` full baseline and targeted follow-up runs validated citation, abstention, repair, permission, and expected-point behavior; `acme-v0.3` is the active verified fixture.
+**Status:** Phase 5 is next. Phases 1 through 4 are complete: the CLI now covers registered Markdown and Slack content, synchronization/removal, policy and authorization, versioned traces, grounded OpenRouter answers, citation repair, and persisted evaluation. The `acme-v0.1` full baseline and targeted follow-up runs validated citation, abstention, repair, permission, and expected-point behavior; `acme-v0.3` is the active verified fixture.
 
 The plan uses decision gates rather than calendar estimates. Each phase should leave behind inspectable artifacts and evidence, not only code.
 
-## Current phase: Phase 4 complete CLI trust and change
+## Current phase: Phase 5 working HTTP API and web operations
 
 ### Completed
 
@@ -102,7 +102,7 @@ Exit evidence:
 
 ## Phase 4: complete CLI trust and change
 
-**Status:** In progress.
+**Status:** Complete. Persisted source registrations, explicit synchronization, changed and removed source handling, explicit source and registration removal, preserved synchronization runs, failed/interrupted status, configuration/version inspection, listable versioned traces, stage timing, categorized CLI errors, and stable JSON contracts are implemented. `sources ingest` remains a one-shot fixture convenience; registered synchronization is the managed lifecycle contract.
 
 Complete content registration, listing, inspection, synchronization, removal, deletion behavior, policy/configuration versions, saved stage traces, and latency. At this gate the complete product pipeline works without a browser.
 
@@ -116,14 +116,16 @@ Exit evidence:
 
 ## Phase 5: local HTTP API and web operations
 
-Expose the existing application services through a local HTTP API. Add a React application with local accounts/sessions and content operations before chat presentation.
+First expose the existing application services through a working local HTTP API and verify it independently. Then add a React application with local accounts/sessions and content operations before chat presentation. The browser must use the API for all application behavior and must never read SQLite or provider credentials directly.
 
 Exit evidence:
 
 - account, group/project membership, active session, and effective-access journeys work;
+- the HTTP API can be run and tested without the React UI and exposes health/configuration plus the required account, content, synchronization, trace, and evaluation operations;
 - content registration, ingestion, inspection, synchronization, and removal reuse CLI-tested services;
 - API and CLI contract results remain semantically equivalent;
 - provider credentials remain server-side;
+- API integration tests cover success, categorized failures, authorization, and lifecycle behavior before UI tests;
 - integrated visual tests cover account and content workflows.
 
 ## Phase 6: web chat, inspection, and evaluation

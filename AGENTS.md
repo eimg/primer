@@ -1,6 +1,6 @@
 # Primer agent guide
 
-Primer is implementing its CLI-first plan. Phases 1 through 3 are complete: Markdown and Slack retrieval, bounded policy ranking, authorization regression coverage, `primer.context.v1`, grounded answers, citation repair, and persisted answer evaluation are implemented. The `acme-v0.1` full and later targeted live runs are preserved; `acme-v0.3` is the active verified fixture. Phase 4 completes the CLI source lifecycle and trust controls. Primer does not index source-code bodies; Helix/Pi owns real repository exploration. Follow the delivery gates in `docs/plan.md`; do not skip to the web or cross-project integration phases.
+Primer has completed Phases 1 through 4: Markdown and Slack retrieval, policy and authorization, grounded answers, persisted evaluation, registered-source synchronization/removal, versioned traces, and CLI trust controls are implemented. The `acme-v0.1` full and later targeted live runs are preserved; `acme-v0.3` is the active verified fixture. Phase 5 must deliver and independently verify a working local HTTP API over the existing application services before React operational surfaces consume it. Browser code must not access SQLite or provider credentials. Primer does not index source-code bodies; Helix/Pi owns real repository exploration. Follow the delivery gates in `docs/plan.md`; do not skip to cross-project integration phases.
 
 This file is an entrypoint, not the full specification.
 

@@ -1,6 +1,6 @@
 # Primer MVP product specification
 
-**Status:** Active product contract. Phase 1 retrieval, Phase 2 contrasting sources, policy, authorization, and context packs, and Phase 3 grounded CLI answers with persisted evaluation are implemented and live-verified. Complete source lifecycle work and web capabilities remain planned.
+**Status:** Active product contract. The complete CLI milestone is implemented: retrieval, policy, authorization, context packs, grounded answers, persisted evaluation, registered-source synchronization/removal, versioned traces, and trust controls are verified. A working local HTTP API and web capabilities remain planned.
 
 ## Objective
 
@@ -18,7 +18,7 @@ The first milestone proves the complete pipeline without a web server or browser
 
 ### Web milestone
 
-After the CLI exit gate passes, a local HTTP API and web application adapt the same application services. The web milestone adds integrated chat, account management, content management, retrieval inspection, synchronization, and evaluation surfaces. It must not introduce a parallel ingestion or retrieval implementation.
+After the CLI exit gate passes, a working local HTTP API adapts the same application services and is verified independently before UI dependence. The React application consumes that API for integrated chat, account management, content management, retrieval inspection, synchronization, and evaluation surfaces. It must not introduce a parallel ingestion or retrieval implementation, access SQLite directly, or expose provider credentials.
 
 ## Initial operating scenario
 

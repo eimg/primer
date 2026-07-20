@@ -78,7 +78,7 @@
 
 **Decision:** The first implementation surface is a first-class CLI. It proves ingestion, content and identity inspection, retrieval, evaluation, cited answers, synchronization, and traces before web work begins. Human-readable output and stable `--json` output are both required where results form a reusable contract.
 
-**Consequence:** Application logic lives behind reusable services rather than inside command handlers. The later HTTP API and web UI adapt those same services instead of reimplementing them.
+**Consequence:** Application logic lives behind reusable services rather than inside command handlers. Phase 5 first delivers an independently runnable and integration-tested HTTP API over those services. The web UI consumes that API instead of reimplementing behavior or accessing SQLite directly.
 
 ### D-013 — Use TypeScript and a single local application
 

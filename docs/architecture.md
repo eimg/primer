@@ -1,6 +1,6 @@
 # Primer conceptual architecture
 
-**Status:** Phase 4 active. The CLI, application services, SQLite index, independent connector/processor registry, Markdown and Slack processors, embedding adapters, policy-adjusted retrieval trace, `primer.context.v1`, grounded answer providers, citation validation with bounded repair, abstention, and separate persisted retrieval/answer evaluations exist. Phase 3 live baselines are recorded; complete synchronization/removal, HTTP, web components, and an optional later Pi simulation remain. Components are logical ownership boundaries, not separate services.
+**Status:** Phase 4 complete. The CLI, application services, SQLite index, independent connector/processor registry, registered-source synchronization/removal, Markdown and Slack processors, embedding adapters, versioned policy-adjusted traces, `primer.context.v1`, grounded answer providers, citation validation with bounded repair, abstention, and persisted retrieval/answer evaluations exist. Phase 5 adds a working HTTP adapter and then React operational surfaces; an optional Pi simulation remains later. Components are logical ownership boundaries, not separate services.
 
 ## Delivery shape
 
@@ -131,8 +131,8 @@ Coordinates explicit use cases such as registering a source, synchronizing conte
 ### Delivery adapters
 
 - The CLI maps arguments, environment, exit status, human output, and stable JSON to application services.
-- The later HTTP API maps authenticated local requests to the same services.
-- The React UI consumes the HTTP API for chat, accounts, content, traces, synchronization, and evaluation.
+- The Phase 5 HTTP API maps authenticated local requests to the same services and is independently runnable and integration-tested.
+- The React UI consumes that API for chat, accounts, content, traces, synchronization, and evaluation; it never accesses SQLite directly.
 
 No domain rule should exist only in a command handler, route, or browser component.
 
@@ -284,10 +284,14 @@ The evidence pipeline is a structured workflow, not an agent loop. A later Pi si
 ## Consistency and synchronization
 
 - Source and record identities must be stable.
+- A persisted registration identifies the connector and acquisition scope responsible for a managed set of sources.
+- One stable source identity cannot be silently claimed by two registrations; ownership collisions fail visibly.
 - A source version or content checksum makes changes observable.
 - Synchronization is idempotent for an unchanged source version.
 - Removed or rejected content must be deleted from all retrieval representations.
+- An available but empty registered scope confirms removals; an unavailable scope fails synchronization rather than guessing that all sources were deleted.
 - Partial failure must be visible and must not present a mixed index as fully synchronized.
+- Synchronization runs remain inspectable after a registration is removed; abandoned running work is recovered as interrupted.
 - Policy and processor versions belong in the trace so changed behavior can be explained.
 
 ## Runtime shape

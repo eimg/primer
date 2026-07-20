@@ -37,6 +37,38 @@ test("CLI JSON contracts cover init, ingest, and retrieval", () => {
       ["markdown-local", "slack-export"],
     );
 
+    const configuration = runCli(dataDir, ["config", "show", "--json"]);
+    assert.equal(configuration.status, 0, configuration.stderr);
+    const configResult = JSON.parse(configuration.stdout) as {
+      schemaVersion: string;
+      storageSchemaVersion: number;
+      policyVersion: string;
+    };
+    assert.equal(configResult.schemaVersion, "primer.config.v1");
+    assert.equal(configResult.storageSchemaVersion, 3);
+    assert.equal(configResult.policyVersion, "index-v1");
+
+    const registered = runCli(dataDir, [
+      "sources",
+      "register",
+      "sample-data/acme/sources/markdown",
+      "--connector",
+      "markdown-local",
+      "--json",
+    ]);
+    assert.equal(registered.status, 0, registered.stderr);
+    const registrationId = (JSON.parse(registered.stdout) as { registration: { id: string } }).registration.id;
+
+    const synchronized = runCli(dataDir, ["sources", "sync", registrationId, "--json"]);
+    assert.equal(synchronized.status, 0, synchronized.stderr);
+    const syncResult = JSON.parse(synchronized.stdout) as { schemaVersion: string; runs: Array<{ id: string; status: string }> };
+    assert.equal(syncResult.schemaVersion, "primer.sync-results.v1");
+    assert.equal(syncResult.runs[0]?.status, "completed");
+
+    const syncRuns = runCli(dataDir, ["syncs", "list", "--json"]);
+    assert.equal(syncRuns.status, 0, syncRuns.stderr);
+    assert.equal((JSON.parse(syncRuns.stdout) as { runs: unknown[] }).runs.length, 1);
+
     const ingested = runCli(dataDir, ["sources", "ingest", "--json"]);
     assert.equal(ingested.status, 0, ingested.stderr);
     assert.equal((JSON.parse(ingested.stdout) as { schemaVersion: string }).schemaVersion, "primer.ingest.v1");
@@ -51,9 +83,25 @@ test("CLI JSON contracts cover init, ingest, and retrieval", () => {
       "--json",
     ]);
     assert.equal(retrieved.status, 0, retrieved.stderr);
-    const trace = JSON.parse(retrieved.stdout) as { schemaVersion: string; evidence: Array<{ recordId: string }> };
-    assert.equal(trace.schemaVersion, "primer.retrieval.v2");
+    const trace = JSON.parse(retrieved.stdout) as {
+      schemaVersion: string;
+      traceId: string;
+      policyVersion: string;
+      storageSchemaVersion: number;
+      processorVersions: Record<string, string>;
+      evidence: Array<{ recordId: string }>;
+    };
+    assert.equal(trace.schemaVersion, "primer.retrieval.v3");
+    assert.equal(trace.storageSchemaVersion, 3);
+    assert.equal(trace.policyVersion, "index-v1");
+    assert.equal(trace.processorVersions.markdown, "markdown-v1");
     assert.equal(trace.evidence[0]?.recordId, "md:md-cc-imports#account-owner-mapping");
+
+    const traces = runCli(dataDir, ["traces", "list", "--json"]);
+    assert.equal(traces.status, 0, traces.stderr);
+    assert.ok(
+      (JSON.parse(traces.stdout) as { traces: Array<{ id: string }> }).traces.some((item) => item.id === trace.traceId),
+    );
 
     const packed = runCli(dataDir, [
       "context",
@@ -105,6 +153,27 @@ test("CLI JSON contracts cover init, ingest, and retrieval", () => {
     assert.equal(evaluationRuns.status, 0, evaluationRuns.stderr);
     assert.ok(
       (JSON.parse(evaluationRuns.stdout) as { runs: Array<{ id: string }> }).runs.some((run) => run.id === evaluated.runId),
+    );
+
+    const sourceFailure = runCli(dataDir, ["sources", "sync", "reg_missing", "--json"]);
+    assert.equal(sourceFailure.status, 1);
+    assert.equal(
+      (JSON.parse(sourceFailure.stderr) as { error: { category: string } }).error.category,
+      "source-processing",
+    );
+
+    const authorizationFailure = runCli(dataDir, ["retrieve", "anything", "--user", "u-missing", "--json"]);
+    assert.equal(authorizationFailure.status, 1);
+    assert.equal(
+      (JSON.parse(authorizationFailure.stderr) as { error: { category: string } }).error.category,
+      "authorization",
+    );
+
+    const unregistered = runCli(dataDir, ["sources", "unregister", registrationId, "--json"]);
+    assert.equal(unregistered.status, 0, unregistered.stderr);
+    assert.equal(
+      (JSON.parse(unregistered.stdout) as { schemaVersion: string }).schemaVersion,
+      "primer.registration-removal.v1",
     );
   } finally {
     rmSync(dataDir, { recursive: true, force: true });

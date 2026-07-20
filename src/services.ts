@@ -1,7 +1,7 @@
-import { basename, join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import type { PrimerConfig } from "./config.js";
 import { createDefaultConnectorRegistry } from "./connectors/default.js";
-import type { ConnectorRegistry } from "./connectors/registry.js";
+import type { ConnectorRegistry, ProcessedConnectorSource } from "./connectors/registry.js";
 import { PrimerDatabase, type StoredRecord } from "./database.js";
 import { cosineSimilarity } from "./embeddings.js";
 import { loadFixtureIdentities, validateFixture } from "./fixture.js";
@@ -27,9 +27,14 @@ import {
   type OrchestratorContextPack,
   type RetrievalCandidate,
   type RetrievalTrace,
+  type RegistrationRemovalResult,
+  type SourceRegistration,
+  type SourceRemovalResult,
+  type SyncRun,
+  type SyncTiming,
   type ValidationReport,
 } from "./types.js";
-import { elapsedMs, newTraceId, nowIso } from "./utils.js";
+import { checksum, elapsedMs, newSyncId, newTraceId, nowIso } from "./utils.js";
 
 export interface EvaluationCaseResult {
   id: string;
@@ -265,16 +270,95 @@ export class PrimerServices {
     return this.connectors.list();
   }
 
-  async ingest(input: { path?: string; connectorId?: string } = {}): Promise<IngestResult[]> {
-    const sources = await this.connectors.process(input);
+  configuration(): {
+    schemaVersion: "primer.config.v1";
+    applicationVersion: string;
+    storageSchemaVersion: number;
+    policyVersion: string;
+    dataDir: string;
+    databasePath: string;
+    fixtureDir: string;
+    embedding: { provider: string; model: string };
+    chat: { provider: string; model?: string };
+    connectors: ReturnType<ConnectorRegistry["list"]>;
+  } {
+    return {
+      schemaVersion: "primer.config.v1",
+      applicationVersion: APPLICATION_VERSION,
+      storageSchemaVersion: STORAGE_SCHEMA_VERSION,
+      policyVersion: POLICY_VERSION,
+      dataDir: this.config.dataDir,
+      databasePath: this.config.databasePath,
+      fixtureDir: this.config.fixtureDir,
+      embedding: { provider: this.config.embeddingProvider, model: this.config.embeddingModel ?? this.embeddings.modelId },
+      chat: {
+        provider: this.config.chatProvider,
+        ...(this.config.chatModel ? { model: this.config.chatModel } : {}),
+      },
+      connectors: this.connectors.list(),
+    };
+  }
+
+  registerSource(input: { connectorId: string; path: string }): SourceRegistration {
+    const path = resolve(input.path);
+    this.connectors.assertSupports(input.connectorId, path);
+    const connector = this.connectors.describe(input.connectorId);
+    const timestamp = nowIso();
+    return this.database.registerSource({
+      id: `reg_${checksum(`${input.connectorId}\0${path}`).slice(0, 16)}`,
+      connectorId: input.connectorId,
+      sourceFamily: connector.sourceFamily,
+      path,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      lastSyncStatus: "never",
+    });
+  }
+
+  listSourceRegistrations(): SourceRegistration[] {
+    return this.database.listSourceRegistrations();
+  }
+
+  inspectSourceRegistration(id: string): {
+    schemaVersion: "primer.source-registration.v1";
+    registration: SourceRegistration;
+    sourceIds: string[];
+    syncRuns: SyncRun[];
+  } {
+    const registration = this.database.getSourceRegistration(id);
+    if (!registration) throw new Error(`Unknown source registration: ${id}`);
+    return {
+      schemaVersion: "primer.source-registration.v1",
+      registration,
+      sourceIds: this.database.listSourceIdsForRegistration(id),
+      syncRuns: this.database.listSyncRuns(id),
+    };
+  }
+
+  private async indexProcessedSources(
+    sources: ProcessedConnectorSource[],
+    registrationId?: string,
+    timing?: Pick<SyncTiming, "embedding" | "indexWrite">,
+  ): Promise<IngestResult[]> {
     const results: IngestResult[] = [];
     for (const { connectorId, processorVersion, processed } of sources) {
       const previous = this.database.getSourceVersion(processed.source.sourceId);
+      if (registrationId && previous?.registrationId && previous.registrationId !== registrationId) {
+        throw new Error(
+          `Source ${processed.source.sourceId} is already managed by registration ${previous.registrationId}.`,
+        );
+      }
+      if (!registrationId && previous?.registrationId && previous.sourceVersion !== processed.sourceVersion) {
+        throw new Error(
+          `Source ${processed.source.sourceId} is managed by registration ${previous.registrationId}; synchronize that registration instead.`,
+        );
+      }
       if (
         previous?.sourceVersion === processed.sourceVersion &&
         previous.processorVersion === processorVersion &&
         previous.embeddingModel === this.embeddings.modelId
       ) {
+        if (registrationId) this.database.assignSourceRegistration(processed.source.sourceId, registrationId);
         results.push({
           connectorId,
           sourceFamily: processed.source.source,
@@ -286,10 +370,14 @@ export class PrimerServices {
         });
         continue;
       }
+      const embeddingStart = process.hrtime.bigint();
       const vectors = await this.embeddings.embedMany(
         processed.records.map((record) => `${record.title}\n${record.content}`),
       );
-      this.database.replaceSource(processed, vectors, this.embeddings.modelId, processorVersion);
+      if (timing) timing.embedding += elapsedMs(embeddingStart);
+      const writeStart = process.hrtime.bigint();
+      this.database.replaceSource(processed, vectors, this.embeddings.modelId, processorVersion, registrationId);
+      if (timing) timing.indexWrite += elapsedMs(writeStart);
       results.push({
         connectorId,
         sourceFamily: processed.source.source,
@@ -301,6 +389,105 @@ export class PrimerServices {
       });
     }
     return results;
+  }
+
+  async ingest(input: { path?: string; connectorId?: string } = {}): Promise<IngestResult[]> {
+    const sources = await this.connectors.process(input);
+    return this.indexProcessedSources(sources);
+  }
+
+  async synchronize(input: { registrationId?: string } = {}): Promise<SyncRun[]> {
+    const registrations = input.registrationId
+      ? [this.database.getSourceRegistration(input.registrationId)].filter(
+          (registration): registration is SourceRegistration => Boolean(registration),
+        )
+      : this.database.listSourceRegistrations();
+    if (input.registrationId && registrations.length === 0) {
+      throw new Error(`Unknown source registration: ${input.registrationId}`);
+    }
+    if (registrations.length === 0) throw new Error("No registered sources. Run primer sources register first.");
+
+    const runs: SyncRun[] = [];
+    for (const registration of registrations) runs.push(await this.synchronizeRegistration(registration));
+    return runs;
+  }
+
+  private async synchronizeRegistration(registration: SourceRegistration): Promise<SyncRun> {
+    const descriptor = this.connectors.describe(registration.connectorId);
+    const startedAt = nowIso();
+    const totalStart = process.hrtime.bigint();
+    const timingMs: SyncTiming = {
+      acquisitionAndProcessing: 0,
+      embedding: 0,
+      indexWrite: 0,
+      cleanup: 0,
+      total: 0,
+    };
+    let run: SyncRun = {
+      schemaVersion: "primer.sync.v1",
+      id: newSyncId(),
+      registrationId: registration.id,
+      connectorId: registration.connectorId,
+      sourceFamily: registration.sourceFamily,
+      status: "running",
+      applicationVersion: APPLICATION_VERSION,
+      storageSchemaVersion: STORAGE_SCHEMA_VERSION,
+      processorVersion: descriptor.processorVersion,
+      policyVersion: POLICY_VERSION,
+      embeddingModel: this.embeddings.modelId,
+      ownerProcessId: process.pid,
+      results: [],
+      removedSourceIds: [],
+      timingMs,
+      startedAt,
+    };
+    this.database.saveSyncRun(run);
+    try {
+      const processStart = process.hrtime.bigint();
+      const sources = await this.connectors.process({
+        connectorId: registration.connectorId,
+        path: registration.path,
+      });
+      timingMs.acquisitionAndProcessing = elapsedMs(processStart);
+      const previousSourceIds = this.database.listSourceIdsForRegistration(registration.id);
+      const results = await this.indexProcessedSources(sources, registration.id, timingMs);
+      const observed = new Set(results.map((result) => result.sourceId));
+      const removedSourceIds = previousSourceIds.filter((sourceId) => !observed.has(sourceId));
+      const cleanupStart = process.hrtime.bigint();
+      for (const sourceId of removedSourceIds) this.database.removeSource(sourceId);
+      timingMs.cleanup = elapsedMs(cleanupStart);
+      timingMs.total = elapsedMs(totalStart);
+      run = { ...run, status: "completed", results, removedSourceIds, timingMs, completedAt: nowIso() };
+      this.database.saveSyncRun(run);
+      return run;
+    } catch (cause) {
+      timingMs.total = elapsedMs(totalStart);
+      const error = cause instanceof Error ? cause.message : String(cause);
+      run = { ...run, status: "failed", error, timingMs, completedAt: nowIso() };
+      this.database.saveSyncRun(run);
+      throw new Error(`Synchronization ${run.id} failed: ${error}`);
+    }
+  }
+
+  listSyncRuns(): SyncRun[] {
+    return this.database.listSyncRuns();
+  }
+
+  getSyncRun(id: string): SyncRun {
+    const run = this.database.getSyncRun(id);
+    if (!run) throw new Error(`Unknown synchronization run: ${id}`);
+    return run;
+  }
+
+  removeSource(sourceId: string): SourceRemovalResult {
+    const result = this.database.removeSource(sourceId);
+    return { schemaVersion: "primer.source-removal.v1", sourceId, ...result };
+  }
+
+  unregisterSource(id: string): RegistrationRemovalResult {
+    const result = this.database.removeRegistration(id);
+    if (!result) throw new Error(`Unknown source registration: ${id}`);
+    return { schemaVersion: "primer.registration-removal.v1", registrationId: id, ...result };
   }
 
   listSources(): ReturnType<PrimerDatabase["listSources"]> {
@@ -407,6 +594,10 @@ export class PrimerServices {
       question: input.question,
       userId: user.id,
       ...(input.projectId ? { projectId: input.projectId } : {}),
+      applicationVersion: APPLICATION_VERSION,
+      storageSchemaVersion: STORAGE_SCHEMA_VERSION,
+      policyVersion: POLICY_VERSION,
+      processorVersions: { markdown: MARKDOWN_PROCESSOR_VERSION, slack: SLACK_PROCESSOR_VERSION },
       embeddingModel: this.embeddings.modelId,
       lexical,
       semantic,
@@ -632,6 +823,10 @@ export class PrimerServices {
     const trace = this.database.getTrace(id);
     if (!trace) throw new Error(`Unknown trace: ${id}`);
     return trace;
+  }
+
+  listTraces(): ReturnType<PrimerDatabase["listTraces"]> {
+    return this.database.listTraces();
   }
 
   listEvaluationRuns(): ReturnType<PrimerDatabase["listEvaluationRuns"]> {

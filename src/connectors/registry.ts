@@ -32,6 +32,24 @@ export class ConnectorRegistry {
       .sort((left, right) => left.connectorId.localeCompare(right.connectorId));
   }
 
+  describe(connectorId: string): { connectorId: string; sourceFamily: string; processorVersion: string } {
+    const registration = this.registrations.get(connectorId);
+    if (!registration) throw new Error(`Unknown connector: ${connectorId}`);
+    return {
+      connectorId: registration.connector.id,
+      sourceFamily: registration.connector.sourceFamily,
+      processorVersion: registration.processor.version,
+    };
+  }
+
+  assertSupports(connectorId: string, path: string): void {
+    const registration = this.registrations.get(connectorId);
+    if (!registration) throw new Error(`Unknown connector: ${connectorId}`);
+    if (!registration.connector.supports(path)) {
+      throw new Error(`Connector ${connectorId} does not support path: ${path}`);
+    }
+  }
+
   async process(input: { connectorId?: string; path?: string } = {}): Promise<ProcessedConnectorSource[]> {
     let registrations = [...this.registrations.values()];
     if (input.connectorId) {

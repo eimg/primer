@@ -4,7 +4,7 @@ Primer is an inspectable knowledge system for turning organizational sources int
 
 Primer turns source material into authorized, ranked evidence and uses that evidence to produce cited answers. Its primary product is not a chat box. It is a trustworthy answer system with transparent decisions between ingestion and generation.
 
-Primer is currently in Phase 4 implementation. The Phase 1 Markdown slice, Phase 2 contrasting-source, policy, and context-pack work, and Phase 3 grounded CLI answers are complete. Markdown and Slack export run through independent connector/processor registrations over the same SQLite, retrieval, authorization, trace, and evaluation services. The CLI emits `primer.context.v1`, grounded `primer.answer.v1` results, and separately persisted `primer.answer-evaluation.v1` runs. Primer supplies organizational context; source-code exploration is delegated to Helix's Pi harness in real workflows. Delivery remains deliberately phased: complete the CLI source lifecycle and trust controls, then place a local web application over the same application services and contracts.
+Primer has completed its CLI milestone and is ready for Phase 5: a working local HTTP API followed by the first operational web surfaces. Markdown and Slack export run through independent connector/processor registrations over the same SQLite, retrieval, authorization, trace, synchronization, and evaluation services. The CLI emits versioned retrieval traces, `primer.context.v1`, grounded `primer.answer.v1` results, synchronization runs, and separately persisted evaluations. Primer supplies organizational context; source-code exploration is delegated to Helix's Pi harness in real workflows.
 
 ## Read first
 
@@ -20,7 +20,7 @@ Primer is currently in Phase 4 implementation. The Phase 1 Markdown slice, Phase
 
 The concept, initial dataset, evaluation cases, and implementation direction are defined. The baseline is a TypeScript application with a local SQLite-derived index and OpenRouter as the model provider. Embeddings use the official OpenRouter TypeScript SDK; grounded answers use Vercel AI SDK with the OpenRouter provider.
 
-The first implementation milestone is CLI-only. It will support content ingestion and inspection, identity-aware retrieval, evaluation, cited answers, synchronization, and machine-readable traces. The later web phase will reuse those application services to provide integrated chat, account management, content management, retrieval inspection, and synchronization views.
+The completed first milestone is CLI-only and supports content ingestion and inspection, identity-aware retrieval, evaluation, cited answers, synchronization, removal, and machine-readable traces. Phase 5 must first expose these same application services through a working, independently tested local HTTP API. The React UI then consumes that API for integrated account and content operations; it must not access SQLite or duplicate application behavior.
 
 See [`docs/plan.md`](./docs/plan.md) for the delivery gates and [`docs/decisions.md`](./docs/decisions.md) for the settled implementation choices.
 
@@ -31,17 +31,21 @@ The CLI currently supports:
 - fixture validation and local SQLite initialization;
 - fixture identity listing and inspection;
 - independently registered local Markdown and Slack export connectors;
+- persisted content registrations with stable IDs;
+- explicit synchronization with indexed, replaced, unchanged, removed, failed, and interrupted outcomes;
+- preserved synchronization history, stage timing, processor/policy/model versions, and explicit derived-content removal;
 - heading-aware Markdown records and thread-aware Slack records with stable checksums and IDs;
 - visible accepted and rejected index decisions;
 - separate SQLite FTS and embedding retrieval stages;
-- reciprocal-rank fusion, bounded evidence, saved traces, and project/identity filtering;
+- reciprocal-rank fusion, bounded evidence, saved and listable traces, and project/identity filtering;
 - bounded authority, freshness, and resolution adjustments with reason ledgers;
 - versioned authorized context packs with constraints, conflicts, and explicitly unverified code leads;
 - grounded answers, deterministic citation validation, and pre-generation abstention;
 - one bounded citation-repair attempt when generated output fails deterministic validation;
 - separate persisted retrieval and answer evaluations with expected-point coverage, permission checks, usage, and timing;
 - Markdown-plus-Slack retrieval and permission evaluation; and
-- human-readable and stable JSON command output.
+- inspectable safe configuration without credential exposure; and
+- human-readable and stable JSON command and categorized error output.
 
 Install and verify:
 
@@ -63,13 +67,18 @@ For an interactive offline walkthrough:
 
 ```bash
 npm run dev:offline -- init
-npm run dev:offline -- sources ingest
+npm run dev:offline -- config show
+npm run dev:offline -- sources register sample-data/acme/sources/markdown --connector markdown-local
+npm run dev:offline -- sources sync <registration-id>
+npm run dev:offline -- sources registrations
+npm run dev:offline -- syncs list
 npm run dev:offline -- retrieve "What does CC_IMPORT_017 mean?" --user u-maya --project clientcore
 npm run dev:offline -- context "Why did TalentFlow send duplicate interview reminders?" --user u-owen --project talentflow
 npm run dev:offline -- ask "What does CC_IMPORT_017 mean?" --user u-maya --project clientcore
 npm run dev:offline -- evaluate
 npm run dev:offline -- evaluate answers
 npm run dev:offline -- evaluations list
+npm run dev:offline -- traces list
 ```
 
 For the live OpenRouter baseline:
@@ -82,7 +91,7 @@ npm run dev -- ask "What does CC_IMPORT_017 mean?" --user u-maya --project clien
 npm run dev -- evaluate answers --case rf-eval-008 --case rf-eval-012
 ```
 
-The live baseline sends accepted synthetic Markdown and Slack thread content to the configured OpenRouter embedding model and persists the returned vectors under `.primer/`. Re-running it with unchanged content, processor version, and embedding model reports sources as `unchanged` and does not re-embed them. Each retrieval still embeds its new query. `ask` sends only the final authorized evidence, constraints, conflicts, question, and answer rules to the configured chat model. Deterministic providers exist for repeatable tests and offline development; they are not substitutes for recorded live baselines.
+The baseline scripts retain `sources ingest` as a one-shot fixture convenience. Managed content should use `sources register` and `sources sync`, which can account for removals and preserve synchronization status and history. The live baseline sends accepted synthetic Markdown and Slack thread content to the configured OpenRouter embedding model and persists the returned vectors under `.primer/`. Re-running it with unchanged content, processor version, and embedding model reports sources as `unchanged` and does not re-embed them. Each retrieval still embeds its new query. `ask` sends only the final authorized evidence, constraints, conflicts, question, and answer rules to the configured chat model. Deterministic providers exist for repeatable tests and offline development; they are not substitutes for recorded live baselines.
 
 `baseline:answers:live` is an explicit paid/network evaluation: it runs the eligible answer cases sequentially and persists the full report in SQLite. Use repeated `--case <id>` options with `evaluate answers` to rerun only selected cases. Use `evaluations list` and `evaluations show <run-id>` with the matching live or offline command to inspect prior runs. Expected-point coverage is a deterministic token-overlap signal; cases marked for semantic review still require human or separately controlled evaluation. A failed citation check triggers at most one additional generation request, and both attempts are included in usage and timing.
 

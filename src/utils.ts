@@ -12,6 +12,10 @@ export function newTraceId(): string {
   return `trace_${randomUUID()}`;
 }
 
+export function newSyncId(): string {
+  return `sync_${randomUUID()}`;
+}
+
 export function slugify(value: string): string {
   return value
     .normalize("NFKD")

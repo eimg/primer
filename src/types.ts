@@ -1,9 +1,9 @@
-export const CONTRACT_VERSION = "primer.retrieval.v2";
+export const CONTRACT_VERSION = "primer.retrieval.v3";
 export const CONTEXT_CONTRACT_VERSION = "primer.context.v1";
 export const ANSWER_CONTRACT_VERSION = "primer.answer.v1";
 export const ANSWER_EVALUATION_CONTRACT_VERSION = "primer.answer-evaluation.v1";
 export const APPLICATION_VERSION = "0.1.0";
-export const STORAGE_SCHEMA_VERSION = 2;
+export const STORAGE_SCHEMA_VERSION = 3;
 export const MARKDOWN_PROCESSOR_VERSION = "markdown-v1";
 export const SLACK_PROCESSOR_VERSION = "slack-thread-v1";
 export const PROCESSOR_VERSION = MARKDOWN_PROCESSOR_VERSION;
@@ -127,6 +127,10 @@ export interface RetrievalTrace {
   question: string;
   userId: string;
   projectId?: string;
+  applicationVersion: string;
+  storageSchemaVersion: number;
+  policyVersion: string;
+  processorVersions: Record<string, string>;
   embeddingModel: string;
   lexical: RetrievalCandidate[];
   semantic: RetrievalCandidate[];
@@ -242,6 +246,61 @@ export interface IngestResult {
   accepted: number;
   rejected: number;
   recordIds: string[];
+}
+
+export interface SourceRegistration {
+  id: string;
+  connectorId: string;
+  sourceFamily: SourceFamily;
+  path: string;
+  createdAt: string;
+  updatedAt: string;
+  lastSyncAt?: string;
+  lastSyncStatus: "never" | "completed" | "failed" | "interrupted";
+  lastError?: string;
+}
+
+export interface SyncTiming {
+  acquisitionAndProcessing: number;
+  embedding: number;
+  indexWrite: number;
+  cleanup: number;
+  total: number;
+}
+
+export interface SyncRun {
+  schemaVersion: "primer.sync.v1";
+  id: string;
+  registrationId: string;
+  connectorId: string;
+  sourceFamily: SourceFamily;
+  status: "running" | "completed" | "failed" | "interrupted";
+  applicationVersion: string;
+  storageSchemaVersion: number;
+  processorVersion: string;
+  policyVersion: string;
+  embeddingModel: string;
+  ownerProcessId?: number;
+  results: IngestResult[];
+  removedSourceIds: string[];
+  error?: string;
+  timingMs: SyncTiming;
+  startedAt: string;
+  completedAt?: string;
+}
+
+export interface SourceRemovalResult {
+  schemaVersion: "primer.source-removal.v1";
+  sourceId: string;
+  removedRecords: number;
+  removed: boolean;
+}
+
+export interface RegistrationRemovalResult {
+  schemaVersion: "primer.registration-removal.v1";
+  registrationId: string;
+  removedSourceIds: string[];
+  removedRecords: number;
 }
 
 export interface ValidationIssue {

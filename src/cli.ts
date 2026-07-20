@@ -5,21 +5,31 @@ import { createEmbeddingProvider, DeterministicEmbeddingProvider } from "./embed
 import { createAnswerProvider } from "./answers.js";
 import { validateFixture } from "./fixture.js";
 import { PrimerServices, type AnswerEvaluationResult, type EvaluationResult } from "./services.js";
-import type { GroundedAnswer, OrchestratorContextPack, RetrievalTrace, ValidationReport } from "./types.js";
+import type { GroundedAnswer, OrchestratorContextPack, RetrievalTrace, SyncRun, ValidationReport } from "./types.js";
 
 const HELP = `Primer — inspect organizational sources as authorized evidence
 
 Usage:
   primer init [--fixture <path>] [--data-dir <path>] [--json]
   primer validate [--fixture <path>] [--json]
+  primer config show [--json]
   primer users list|show <user-id> [--json]
   primer sources connectors [--json]
+  primer sources register <path> --connector <connector-id> [--json]
+  primer sources registrations [--json]
+  primer sources registration <registration-id> [--json]
+  primer sources sync [registration-id] [--json]
   primer sources ingest [path] [--connector <connector-id>] [--json]
   primer sources list [--json]
   primer sources inspect <source-id> [--json]
+  primer sources remove <source-id> [--json]
+  primer sources unregister <registration-id> [--json]
+  primer syncs list [--json]
+  primer syncs show <sync-id> [--json]
   primer retrieve <question> --user <user-id> [--project <project-id>] [--limit <n>] [--json]
   primer context <question> --user <user-id> [--project <project-id>] [--limit <n>] [--json]
   primer ask <question> --user <user-id> [--project <project-id>] [--limit <n>] [--json]
+  primer traces list [--json]
   primer trace show <trace-id> [--json]
   primer evaluate [retrieval|answers] [--case <case-id> ...] [--json]
   primer evaluations list [--json]
@@ -153,6 +163,22 @@ function answerText(result: GroundedAnswer): string {
   ].join("\n");
 }
 
+function syncText(run: SyncRun): string {
+  const counts = run.results.reduce(
+    (totals, result) => ({ ...totals, [result.status]: totals[result.status] + 1 }),
+    { indexed: 0, replaced: 0, unchanged: 0 },
+  );
+  return [
+    `Synchronization ${run.id}: ${run.status}`,
+    `Registration: ${run.registrationId} · ${run.connectorId}/${run.sourceFamily}`,
+    `Sources: ${counts.indexed} indexed · ${counts.replaced} replaced · ${counts.unchanged} unchanged · ${run.removedSourceIds.length} removed`,
+    `Versions: app ${run.applicationVersion} · storage ${run.storageSchemaVersion} · processor ${run.processorVersion} · policy ${run.policyVersion}`,
+    `Embedding: ${run.embeddingModel}`,
+    run.error ? `Error: ${run.error}` : "",
+    `Timing: ${run.timingMs.total.toFixed(2)} ms total · ${run.timingMs.acquisitionAndProcessing.toFixed(2)} acquisition/processing · ${run.timingMs.embedding.toFixed(2)} embedding · ${run.timingMs.indexWrite.toFixed(2)} index write · ${run.timingMs.cleanup.toFixed(2)} cleanup`,
+  ].filter(Boolean).join("\n");
+}
+
 function answerEvaluationText(result: AnswerEvaluationResult): string {
   const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
   const cases = result.cases
@@ -245,6 +271,21 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "config" && subcommand === "show") {
+    const result = await withServices(config, false, (services) => services.configuration());
+    print(result, args.json, () => [
+      `Primer ${result.applicationVersion}`,
+      `Storage schema: ${result.storageSchemaVersion}`,
+      `Policy: ${result.policyVersion}`,
+      `Embedding: ${result.embedding.provider}/${result.embedding.model}`,
+      `Chat: ${result.chat.provider}/${result.chat.model ?? "not configured"}`,
+      `Database: ${result.databasePath}`,
+      `Fixture: ${result.fixtureDir}`,
+      ...result.connectors.map((connector) => `Connector: ${connector.connectorId} · ${connector.processorVersion}`),
+    ].join("\n"));
+    return;
+  }
+
   if (command === "users" && subcommand === "list") {
     const users = await withServices(config, false, (services) => services.listUsers());
     print(users, args.json, () => users.map((user) => `${user.id}\t${user.name}\t${user.title}`).join("\n"));
@@ -267,6 +308,55 @@ async function main(): Promise<void> {
         connectors
           .map((connector) => `${connector.connectorId}\t${connector.sourceFamily}\t${connector.processorVersion}`)
           .join("\n"),
+    );
+    return;
+  }
+  if (command === "sources" && subcommand === "register") {
+    const path = rest[0];
+    if (!path) throw new Error("sources register requires a path");
+    if (!args.connectorId) throw new Error("sources register requires --connector <connector-id>");
+    const registration = await withServices(config, false, (services) =>
+      services.registerSource({ connectorId: args.connectorId!, path }),
+    );
+    print(
+      { schemaVersion: "primer.source-registration.v1", registration },
+      args.json,
+      () => `${registration.id}\t${registration.connectorId}\t${registration.lastSyncStatus}\t${registration.path}`,
+    );
+    return;
+  }
+  if (command === "sources" && subcommand === "registrations") {
+    const registrations = await withServices(config, false, (services) => services.listSourceRegistrations());
+    print(
+      { schemaVersion: "primer.source-registrations.v1", registrations },
+      args.json,
+      () => registrations.map((registration) =>
+        `${registration.id}\t${registration.connectorId}\t${registration.lastSyncStatus}\t${registration.path}`,
+      ).join("\n") || "No registered sources.",
+    );
+    return;
+  }
+  if (command === "sources" && subcommand === "registration") {
+    const registrationId = rest[0];
+    if (!registrationId) throw new Error("sources registration requires a registration ID");
+    const inspected = await withServices(config, false, (services) => services.inspectSourceRegistration(registrationId));
+    print(inspected, args.json, () => [
+      `${inspected.registration.id} [${inspected.registration.connectorId}]`,
+      `Path: ${inspected.registration.path}`,
+      `Last sync: ${inspected.registration.lastSyncStatus}${inspected.registration.lastSyncAt ? ` at ${inspected.registration.lastSyncAt}` : ""}`,
+      `Sources: ${inspected.sourceIds.join(", ") || "none"}`,
+      `Runs: ${inspected.syncRuns.length}`,
+    ].join("\n"));
+    return;
+  }
+  if (command === "sources" && subcommand === "sync") {
+    const runs = await withServices(config, true, (services) =>
+      services.synchronize({ ...(rest[0] ? { registrationId: rest[0] } : {}) }),
+    );
+    print(
+      { schemaVersion: "primer.sync-results.v1", runs },
+      args.json,
+      () => runs.map(syncText).join("\n\n"),
     );
     return;
   }
@@ -322,6 +412,47 @@ async function main(): Promise<void> {
     );
     return;
   }
+  if (command === "sources" && subcommand === "remove") {
+    const sourceId = rest[0];
+    if (!sourceId) throw new Error("sources remove requires a source ID");
+    const result = await withServices(config, false, (services) => services.removeSource(sourceId));
+    print(
+      result,
+      args.json,
+      () => result.removed
+        ? `Removed ${result.sourceId} and ${result.removedRecords} derived records.`
+        : `Source ${result.sourceId} was not indexed.`,
+    );
+    return;
+  }
+  if (command === "sources" && subcommand === "unregister") {
+    const registrationId = rest[0];
+    if (!registrationId) throw new Error("sources unregister requires a registration ID");
+    const result = await withServices(config, false, (services) => services.unregisterSource(registrationId));
+    print(
+      result,
+      args.json,
+      () => `Unregistered ${registrationId}; removed ${result.removedSourceIds.length} sources and ${result.removedRecords} records.`,
+    );
+    return;
+  }
+
+  if (command === "syncs" && subcommand === "list") {
+    const runs = await withServices(config, false, (services) => services.listSyncRuns());
+    print(
+      { schemaVersion: "primer.sync-runs.v1", runs },
+      args.json,
+      () => runs.map((run) => `${run.id}\t${run.status}\t${run.registrationId}\t${run.startedAt}`).join("\n") || "No synchronization runs.",
+    );
+    return;
+  }
+  if (command === "syncs" && subcommand === "show") {
+    const syncId = rest[0];
+    if (!syncId) throw new Error("syncs show requires a synchronization ID");
+    const run = await withServices(config, false, (services) => services.getSyncRun(syncId));
+    print(run, args.json, () => syncText(run));
+    return;
+  }
 
   if (command === "retrieve") {
     const question = [subcommand, ...rest].filter(Boolean).join(" ");
@@ -374,6 +505,17 @@ async function main(): Promise<void> {
     print(trace, args.json, () => retrievalText(trace));
     return;
   }
+  if (command === "traces" && subcommand === "list") {
+    const traces = await withServices(config, false, (services) => services.listTraces());
+    print(
+      { schemaVersion: "primer.traces.v1", traces },
+      args.json,
+      () => traces.map((trace) =>
+        `${trace.id}\t${trace.userId}\t${trace.projectId ?? "-"}\t${trace.createdAt}\t${trace.question}`,
+      ).join("\n") || "No saved traces.",
+    );
+    return;
+  }
 
   if (command === "evaluate") {
     if (subcommand && subcommand !== "retrieval" && subcommand !== "answers") {
@@ -420,8 +562,27 @@ async function main(): Promise<void> {
   throw new Error(`Unknown command: ${args.positionals.join(" ")}\n\n${HELP}`);
 }
 
+type ErrorCategory = "configuration" | "source-processing" | "authorization" | "provider" | "evaluation" | "internal";
+
+function errorCategory(args: string[], message: string): ErrorCategory {
+  const [command] = args.filter((arg) => !arg.startsWith("--"));
+  if (/Unknown user|requires --user/.test(message)) return "authorization";
+  if (/OPENROUTER_API_KEY|PRIMER_(?:EMBEDDING|CHAT)_MODEL|Unknown option|requires a value/.test(message)) {
+    return "configuration";
+  }
+  if (command === "evaluate" || command === "evaluations") return "evaluation";
+  if (command === "sources" || command === "syncs") return "source-processing";
+  if (command === "retrieve" || command === "context" || command === "ask") return "provider";
+  return "internal";
+}
+
 main().catch((cause) => {
   const message = cause instanceof Error ? cause.message : String(cause);
-  process.stderr.write(`primer: ${message}\n`);
+  const category = errorCategory(process.argv.slice(2), message);
+  if (process.argv.includes("--json")) {
+    process.stderr.write(`${JSON.stringify({ schemaVersion: "primer.error.v1", error: { category, message } }, null, 2)}\n`);
+  } else {
+    process.stderr.write(`primer [${category}]: ${message}\n`);
+  }
   process.exitCode = 1;
 });
