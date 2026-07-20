@@ -6,6 +6,10 @@ Primer turns source material into authorized, ranked evidence and uses that evid
 
 Primer has completed its CLI and core web milestones. A working HTTP API and React interface reuse the same SQLite, retrieval, authorization, answer, trace, synchronization, and evaluation services as the CLI. The web application supports local identity/session selection, effective-group management, content operations, streamed grounded chat, citation/evidence navigation, account-scoped retrieval inspection, and persisted evaluation reporting. Primer supplies organizational context; source-code exploration is delegated to Helix's Pi harness in real workflows.
 
+## Web application
+
+[![Primer grounded chat with cited evidence and account-aware access](https://i.imgur.com/vfaKbXB.jpg)](https://imgur.com/a/tsSkoJO)
+
 ## Read first
 
 - [`modern-knowledge-base.md`](./modern-knowledge-base.md) — original concept paper and source material.
