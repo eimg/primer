@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { api, type Connector, type Group, type Registration, type SourceSummary, type SyncRun, type User } from "./api";
+import { useEffect, useState } from "react";
+import { api, type Connector, type Group, type Project, type Registration, type SourceSummary, type SyncRun, type User } from "./api";
+import { ChatView } from "./ChatView";
+import { InspectionView } from "./InspectionView";
 
 const defaultPath = "sample-data/acme/sources/markdown";
 
@@ -15,6 +17,7 @@ function formatDate(value?: string): string {
 export function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [activeUser, setActiveUser] = useState<User>();
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [connectors, setConnectors] = useState<Connector[]>([]);
@@ -27,14 +30,14 @@ export function App() {
   const [notice, setNotice] = useState<string>();
   const [error, setError] = useState<string>();
   const [apiStatus, setApiStatus] = useState("Connecting");
-
-  const groupNames = useMemo(() => new Map(groups.map((group) => [group.id, group.name])), [groups]);
+  const [view, setView] = useState<"chat" | "content" | "inspect">("chat");
 
   async function loadPublic() {
     const [health, accountData] = await Promise.all([api.health(), api.accounts()]);
     setApiStatus(`API ${health.applicationVersion} · schema ${health.storageSchemaVersion}`);
     setUsers(accountData.users);
     setGroups(accountData.groups);
+    setProjects(accountData.projects);
     try {
       const current = await api.session();
       setActiveUser(current.user);
@@ -139,7 +142,7 @@ export function App() {
   return <div className="app-shell">
     <header>
       <div className="brand"><span className="brand-mark small">P</span><div><strong>Primer</strong><small>Knowledge operations</small></div></div>
-      <div className="header-status"><span className="status-dot" />{apiStatus}</div>
+      <nav className="primary-nav" aria-label="Primary navigation"><button className={view === "chat" ? "active" : ""} onClick={() => setView("chat")}>Chat</button><button className={view === "content" ? "active" : ""} onClick={() => setView("content")}>Content</button><button className={view === "inspect" ? "active" : ""} onClick={() => setView("inspect")}>Inspect</button></nav>
       <button className="account-chip" onClick={() => void act("signout", async () => { await api.signOut(); setActiveUser(undefined); }, "Signed out.")}>
         <span className="avatar compact">{initials(activeUser.name)}</span><span><strong>{activeUser.name}</strong><small>Switch account</small></span>
       </button>
@@ -160,9 +163,12 @@ export function App() {
         {busy === "membership" ? "Saving…" : "Save access"}
       </button>
       <p className="hint">Membership changes immediately alter permission-aware retrieval for this account.</p>
+      <p className="sidebar-status"><span className="status-dot" />{apiStatus}</p>
     </aside>
 
-    <main className="workspace">
+    {view === "chat" && <ChatView key={`${activeUser.id}:${activeUser.groupIds.join(",")}`} projects={projects} />}
+    {view === "inspect" && <InspectionView key={activeUser.id} />}
+    {view === "content" && <main className="workspace">
       <div className="page-heading">
         <div><p className="eyebrow">Content operations</p><h1>Sources you can account for.</h1><p className="muted">Register authoritative locations, synchronize their derived records, and inspect every lifecycle outcome.</p></div>
         <div className="metric-row"><div><strong>{registrations.length}</strong><span>Registrations</span></div><div><strong>{sources.length}</strong><span>Indexed sources</span></div><div><strong>{runs.length}</strong><span>Sync runs</span></div></div>
@@ -205,6 +211,6 @@ export function App() {
         <div className="list-heading"><div><p className="eyebrow">Derived index</p><h3>Indexed sources</h3></div><span>{sources.length}</span></div>
         <div className="table-wrap"><table><thead><tr><th>Source</th><th>Family</th><th>Project</th><th>Records</th><th>Indexed</th></tr></thead><tbody>{sources.map((source) => <tr key={source.source_id}><td><strong>{source.source_id}</strong><small>{source.source_ref}</small></td><td><span className="family">{source.source_family}</span></td><td>{source.project_id ?? "Shared"}</td><td>{source.accepted} accepted{source.rejected ? ` · ${source.rejected} rejected` : ""}</td><td>{formatDate(source.indexed_at)}</td></tr>)}</tbody></table>{sources.length === 0 && <div className="empty table-empty"><span>Synchronize a registration to populate the derived index.</span></div>}</div>
       </section>
-    </main>
+    </main>}
   </div>;
 }

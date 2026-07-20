@@ -32,6 +32,15 @@ export interface Group {
   name: string;
 }
 
+export interface Project {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  repository?: string;
+  defaultGroupId: string;
+}
+
 export interface LocalSession {
   id: string;
   userId: string;

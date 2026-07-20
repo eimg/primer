@@ -2,6 +2,7 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 import type { PrimerConfig } from "./config.js";
+import { createAnswerProvider } from "./answers.js";
 import { PrimerDatabase } from "./database.js";
 import { createEmbeddingProvider } from "./embeddings.js";
 import { PrimerServices } from "./services.js";
@@ -58,6 +59,30 @@ function stringArray(value: unknown, field: string): string[] {
     throw new Error(`${field} must be an array of strings.`);
   }
   return value as string[];
+}
+
+function optionalString(value: unknown, field: string): string | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  return requiredString(value, field);
+}
+
+function evidenceLimit(value: unknown): number {
+  if (value === undefined) return 5;
+  if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > 10) {
+    throw new Error("limit must be an integer from 1 to 10.");
+  }
+  return value as number;
+}
+
+function streamEvent(response: ServerResponse, value: unknown): void {
+  response.write(`${JSON.stringify(value)}\n`);
+}
+
+function answerChunks(answer: string): string[] {
+  const words = answer.match(/\S+\s*/g) ?? [answer];
+  const chunks: string[] = [];
+  for (let index = 0; index < words.length; index += 8) chunks.push(words.slice(index, index + 8).join(""));
+  return chunks;
 }
 
 function errorCategory(pathname: string, message: string): ErrorCategory {
@@ -117,7 +142,13 @@ export async function createPrimerHttpApp(
   options: { webRoot?: string; services?: PrimerServices } = {},
 ): Promise<PrimerHttpApp> {
   const database = options.services ? undefined : new PrimerDatabase(config.databasePath);
-  const services = options.services ?? new PrimerServices(config, database!, createEmbeddingProvider(config));
+  const services = options.services ?? new PrimerServices(
+    config,
+    database!,
+    createEmbeddingProvider(config),
+    undefined,
+    createAnswerProvider(config),
+  );
   const report = await services.initialize();
   if (!report.valid) {
     database?.close();
@@ -152,6 +183,7 @@ export async function createPrimerHttpApp(
           schemaVersion: "primer.accounts.v1",
           users: services.listUsers(),
           groups: services.listGroups(),
+          projects: await services.listProjects(),
         });
         return;
       }
@@ -178,6 +210,40 @@ export async function createPrimerHttpApp(
       if (request.method === "GET" && pathname === "/api/session") {
         const { id: _id, ...session } = active.session;
         sendJson(response, 200, { schemaVersion: "primer.session.v1", session, user: active.user });
+        return;
+      }
+
+      if (request.method === "POST" && pathname === "/api/chat") {
+        const body = await readJson(request);
+        response.writeHead(200, {
+          "content-type": "application/x-ndjson; charset=utf-8",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+        });
+        streamEvent(response, { type: "status", stage: "retrieval", message: "Retrieving authorized evidence" });
+        try {
+          const projectId = optionalString(body.projectId, "projectId");
+          const answer = await services.ask({
+            question: requiredString(body.question, "question"),
+            userId: active.user.id,
+            ...(projectId ? { projectId } : {}),
+            limit: evidenceLimit(body.limit),
+          });
+          streamEvent(response, {
+            type: "status",
+            stage: "validation",
+            message: answer.citationValidation.valid ? "Citations validated" : "Citation review required",
+          });
+          for (const text of answerChunks(answer.answer)) {
+            streamEvent(response, { type: "delta", text });
+            await new Promise<void>((resolve) => setImmediate(resolve));
+          }
+          streamEvent(response, { type: "result", answer });
+        } catch (cause) {
+          const message = cause instanceof Error ? cause.message : String(cause);
+          streamEvent(response, { type: "error", error: { category: errorCategory(pathname, message), message } });
+        }
+        response.end();
         return;
       }
 
@@ -246,16 +312,33 @@ export async function createPrimerHttpApp(
         return;
       }
       if (request.method === "GET" && pathname === "/api/traces") {
-        sendJson(response, 200, { schemaVersion: "primer.traces.v1", traces: services.listTraces() });
+        sendJson(response, 200, {
+          schemaVersion: "primer.traces.v1",
+          traces: services.listTraces().filter((trace) => trace.userId === active.user.id),
+        });
         return;
       }
       const traceRoute = /^\/api\/traces\/([^/]+)$/.exec(pathname);
       if (request.method === "GET" && traceRoute) {
-        sendJson(response, 200, { schemaVersion: "primer.trace.v1", trace: services.getTrace(decodeURIComponent(traceRoute[1]!)) });
+        const trace = services.getTrace(decodeURIComponent(traceRoute[1]!));
+        if (trace.userId !== active.user.id) throw new Error("The active local session cannot access this trace.");
+        sendJson(response, 200, { schemaVersion: "primer.trace.v1", trace });
         return;
       }
       if (request.method === "GET" && pathname === "/api/evaluations") {
         sendJson(response, 200, { schemaVersion: "primer.evaluation-runs.v1", runs: services.listEvaluationRuns() });
+        return;
+      }
+      if (request.method === "POST" && pathname === "/api/evaluations") {
+        const body = await readJson(request);
+        const kind = requiredString(body.kind, "kind");
+        const run = kind === "retrieval"
+          ? await services.evaluate()
+          : kind === "answers"
+            ? await services.evaluateAnswers({ caseIds: body.caseIds === undefined ? [] : stringArray(body.caseIds, "caseIds") })
+            : undefined;
+        if (!run) throw new Error("kind must be retrieval or answers.");
+        sendJson(response, 201, { schemaVersion: "primer.evaluation-run.v1", run });
         return;
       }
       const evaluationRoute = /^\/api\/evaluations\/([^/]+)$/.exec(pathname);

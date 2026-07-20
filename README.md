@@ -4,7 +4,7 @@ Primer is an inspectable knowledge system for turning organizational sources int
 
 Primer turns source material into authorized, ranked evidence and uses that evidence to produce cited answers. Its primary product is not a chat box. It is a trustworthy answer system with transparent decisions between ingestion and generation.
 
-Primer has completed its CLI milestone and Phase 5 local operations milestone. A working HTTP API and React interface now reuse the same SQLite, retrieval, authorization, trace, synchronization, and evaluation services as the CLI. The web application supports local identity/session selection, effective-group management, content registration, synchronization, and derived-index inspection. Phase 6 adds chat, trace, and evaluation presentation. Primer supplies organizational context; source-code exploration is delegated to Helix's Pi harness in real workflows.
+Primer has completed its CLI and core web milestones. A working HTTP API and React interface reuse the same SQLite, retrieval, authorization, answer, trace, synchronization, and evaluation services as the CLI. The web application supports local identity/session selection, effective-group management, content operations, streamed grounded chat, citation/evidence navigation, account-scoped retrieval inspection, and persisted evaluation reporting. Primer supplies organizational context; source-code exploration is delegated to Helix's Pi harness in real workflows.
 
 ## Read first
 
@@ -65,7 +65,9 @@ npm run dev:api:offline
 
 For live provider configuration, use `npm run dev:api`. During UI development, `npm run dev:full:offline` starts the API and Vite development server together. The production build serves `dist/web` from the same Node HTTP process as `/api`.
 
-The current web milestone provides a local identity chooser, HttpOnly session cookie, effective-group editing, source registration, synchronization status/history, and indexed-source inspection. The API also exposes health and safe configuration plus account, registration, source, synchronization, trace, and evaluation list/detail operations. Chat and detailed trace/evaluation views are Phase 6 work.
+The current web milestone provides a local identity chooser, HttpOnly session cookie, effective-group editing, source registration and synchronization, streamed grounded chat, citation-linked evidence provenance, full retrieval-stage inspection, and persisted evaluation reports. Chat uses the active session identity rather than accepting a browser-supplied actor ID. Its NDJSON response reports progress, streams the finalized validated answer, and ends with the complete grounded-answer contract. Switching identity or changing effective access clears browser-held conversation state.
+
+The API exposes health and safe configuration plus account, chat, registration, source, synchronization, trace, and evaluation operations. `POST /api/evaluations` can run retrieval or answer suites; the answer suite invokes the configured chat model in live mode.
 
 Copy `.env.example` to `.env` and fill in the OpenRouter values for live commands. `npm run dev` loads `.env` automatically.
 

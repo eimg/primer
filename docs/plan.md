@@ -1,10 +1,10 @@
 # Primer delivery plan
 
-**Status:** Phase 6 is next. Phases 1 through 5 are complete: the CLI pipeline, independently tested local HTTP API, HttpOnly local sessions, account access management, and React content operations are implemented. The `acme-v0.1` full baseline and targeted follow-up runs validated citation, abstention, repair, permission, and expected-point behavior; `acme-v0.3` is the active verified fixture.
+**Status:** Phase 7 is next. Phases 1 through 6 are complete: the CLI pipeline, local HTTP API, account/content operations, streamed grounded chat, citation/evidence navigation, account-scoped retrieval inspection, and persisted evaluation reporting are implemented. The `acme-v0.1` full baseline and targeted follow-up runs validated citation, abstention, repair, permission, and expected-point behavior; `acme-v0.3` is the active verified fixture.
 
 The plan uses decision gates rather than calendar estimates. Each phase should leave behind inspectable artifacts and evidence, not only code.
 
-## Current phase: Phase 6 web chat, inspection, and evaluation
+## Current phase: Phase 7 ecosystem integrations
 
 ### Completed
 
@@ -132,6 +132,8 @@ Exit evidence:
 
 ## Phase 6: web chat, inspection, and evaluation
 
+**Status:** Complete for the core web milestone. The same answer workflow used by the CLI is exposed as an account-bound NDJSON stream that reports retrieval/validation progress, incrementally delivers only the finalized validated answer, and ends with the complete `primer.answer.v1` result. Chat presents project scope, abstention, citations, conflicts, exact evidence, provenance, model input, and timing. Account-scoped inspection presents lexical, semantic, fused, and final-evidence stages; evaluation reporting lists, runs, and opens persisted retrieval/answer suites. Browser verification proved the same compensation-analytics question abstains for Maya while Priya can inspect the authorized leadership proposal, and confirmed responsive behavior with no remaining console errors. The optional Pi simulation is deliberately deferred and is not required to complete this core phase.
+
 Add streamed chat, citations, evidence navigation, expandable retrieval/model traces, synchronization results, and evaluation reporting to the web application. Add an optional server-side Pi simulation only after these core surfaces work: Primer supplies authorized initial context, a read-only Pi session explores a restored fixture repository, and the UI displays Primer evidence and Pi-discovered code context as separate stages.
 
 Exit evidence:
@@ -141,7 +143,7 @@ Exit evidence:
 - chat, content, account, trace, synchronization, and evaluation surfaces operate as one system;
 - all MVP acceptance criteria in `product-spec.md` are verified;
 - visual and end-to-end tests cover the representative product journeys.
-- the optional Pi simulation is revision-pinned, read-only, bounded, and cannot mutate the Primer index.
+- if the optional Pi simulation is later implemented, it is revision-pinned, read-only, bounded, and cannot mutate the Primer index.
 
 ## Phase 7: ecosystem integrations
 

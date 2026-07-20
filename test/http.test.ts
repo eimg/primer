@@ -3,6 +3,8 @@ import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { test } from "node:test";
 import { createPrimerHttpApp } from "../src/http.js";
+import { DeterministicAnswerProvider } from "../src/answers.js";
+import type { GroundedAnswer } from "../src/types.js";
 import { createTestServices, fixtureDir } from "./helpers.js";
 
 test("HTTP API runs independently and reuses account and content application services", async () => {
@@ -32,9 +34,10 @@ test("HTTP API runs independently and reuses account and content application ser
 
     const accounts = await fetch(`${baseUrl}/api/accounts`);
     assert.equal(accounts.status, 200);
-    const accountBody = await accounts.json() as { users: unknown[]; groups: unknown[] };
+    const accountBody = await accounts.json() as { users: unknown[]; groups: unknown[]; projects: unknown[] };
     assert.equal(accountBody.users.length, 10);
     assert.equal(accountBody.groups.length, 11);
+    assert.equal(accountBody.projects.length, 3);
 
     const signedIn = await fetch(`${baseUrl}/api/session`, {
       method: "POST",
@@ -115,6 +118,85 @@ test("HTTP API runs independently and reuses account and content application ser
 
     const signedOut = await fetch(`${baseUrl}/api/session`, { method: "DELETE", headers: { cookie: cookie! } });
     assert.equal(signedOut.status, 200);
+  } finally {
+    await new Promise<void>((resolve) => app.server.close(() => resolve()));
+    app.close();
+    context.cleanup();
+  }
+});
+
+test("streamed chat uses the active account and keeps traces account-scoped", async () => {
+  const context = await createTestServices(new DeterministicAnswerProvider());
+  await context.services.ingest();
+  const app = await createPrimerHttpApp(context.services.config, {
+    services: context.services,
+    webRoot: join(context.directory, "missing-web-build"),
+  });
+  await new Promise<void>((resolve, reject) => {
+    app.server.once("error", reject);
+    app.server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = app.server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+
+  const signIn = async (userId: string): Promise<string> => {
+    const response = await fetch(`${baseUrl}/api/session`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    assert.equal(response.status, 201);
+    return response.headers.get("set-cookie")!.split(";", 1)[0]!;
+  };
+  const ask = async (cookie: string): Promise<GroundedAnswer> => {
+    const response = await fetch(`${baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        question: "What is planned for TalentFlow compensation analytics?",
+        projectId: "talentflow",
+      }),
+    });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /application\/x-ndjson/);
+    const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line) as {
+      type: string;
+      answer?: GroundedAnswer;
+    });
+    assert.ok(events.some((event) => event.type === "status"));
+    assert.ok(events.some((event) => event.type === "delta"));
+    const answer = events.find((event) => event.type === "result")?.answer;
+    assert.ok(answer);
+    return answer;
+  };
+
+  try {
+    const mayaCookie = await signIn("u-maya");
+    const mayaAnswer = await ask(mayaCookie);
+    assert.equal(mayaAnswer.model, "primer-abstain");
+    assert.ok(!mayaAnswer.evidence.some((item) => item.recordId === "slack:G-LEADERSHIP:1778491800.000100"));
+
+    const priyaCookie = await signIn("u-priya");
+    const priyaAnswer = await ask(priyaCookie);
+    assert.notEqual(priyaAnswer.model, "primer-abstain");
+    assert.ok(priyaAnswer.evidence.some((item) => item.recordId === "slack:G-LEADERSHIP:1778491800.000100"));
+
+    const inaccessibleTrace = await fetch(`${baseUrl}/api/traces/${mayaAnswer.traceId}`, {
+      headers: { cookie: priyaCookie },
+    });
+    assert.equal(inaccessibleTrace.status, 401);
+    const priyaTraces = await fetch(`${baseUrl}/api/traces`, { headers: { cookie: priyaCookie } });
+    assert.ok(!(await priyaTraces.json() as { traces: Array<{ id: string }> }).traces.some((trace) => trace.id === mayaAnswer.traceId));
+
+    const evaluation = await fetch(`${baseUrl}/api/evaluations`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: priyaCookie },
+      body: JSON.stringify({ kind: "retrieval" }),
+    });
+    assert.equal(evaluation.status, 201);
+    const evaluationId = (await evaluation.json() as { run: { runId: string } }).run.runId;
+    const evaluationDetail = await fetch(`${baseUrl}/api/evaluations/${evaluationId}`, { headers: { cookie: priyaCookie } });
+    assert.equal(evaluationDetail.status, 200);
   } finally {
     await new Promise<void>((resolve) => app.server.close(() => resolve()));
     app.close();

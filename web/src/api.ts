@@ -7,6 +7,7 @@ export interface User {
 }
 
 export interface Group { id: string; name: string }
+export interface Project { id: string; code: string; name: string; description: string; defaultGroupId: string }
 export interface Connector { connectorId: string; sourceFamily: string; processorVersion: string }
 export interface Registration {
   id: string;
@@ -37,6 +38,70 @@ export interface SyncRun {
   startedAt: string;
   error?: string;
 }
+export interface Evidence {
+  evidenceId: string;
+  recordId: string;
+  title: string;
+  excerpt: string;
+  source: string;
+  sourceRef: string;
+  updatedAt: string;
+  authority: number;
+  resolutionState?: string;
+  retrievalReasons: string[];
+  policyReasons: Array<{ kind: string; adjustment: number; reason: string }>;
+}
+export interface Candidate {
+  recordId: string;
+  rank: number;
+  score: number;
+  reason?: string;
+  retrievalReasons?: string[];
+  policyReasons?: Array<{ kind: string; adjustment: number; reason: string }>;
+}
+export interface GroundedAnswer {
+  traceId: string;
+  question: string;
+  actorId: string;
+  projectId?: string;
+  answer: string;
+  modelInputEvidenceIds: string[];
+  evidence: Evidence[];
+  constraints: Array<{ text: string; evidenceIds: string[] }>;
+  conflicts: Array<{ text: string; evidenceIds: string[] }>;
+  citationValidation: { valid: boolean; citedEvidenceIds: string[]; invalidEvidenceIds: string[]; uncitedClaims: string[] };
+  model: string;
+  configuredModel: string;
+  generationAttempts: number;
+  timingMs: { retrieval: number; generation: number; validation: number; total: number };
+  createdAt: string;
+}
+export interface TraceSummary { id: string; userId: string; question: string; projectId?: string; embeddingModel: string; createdAt: string }
+export interface RetrievalTrace {
+  traceId: string;
+  question: string;
+  userId: string;
+  projectId?: string;
+  embeddingModel: string;
+  lexical: Candidate[];
+  semantic: Candidate[];
+  fused: Candidate[];
+  evidence: Evidence[];
+  timingMs: { authorization: number; lexical: number; semantic: number; fusion: number; evidence: number; total: number };
+  createdAt: string;
+}
+export interface EvaluationSummary { id: string; schemaVersion: string; fixtureId: string; embeddingModel: string; createdAt: string }
+export interface EvaluationRun {
+  schemaVersion: string;
+  runId: string;
+  fixtureId: string;
+  embeddingModel: string;
+  answerModel?: string;
+  providerMode?: string;
+  aggregate: Record<string, number>;
+  cases: Array<Record<string, unknown>>;
+  createdAt: string;
+}
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
@@ -51,7 +116,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   health: () => request<{ status: string; applicationVersion: string; storageSchemaVersion: number }>("/api/health"),
-  accounts: () => request<{ users: User[]; groups: Group[] }>("/api/accounts"),
+  accounts: () => request<{ users: User[]; groups: Group[]; projects: Project[] }>("/api/accounts"),
   session: () => request<{ user: User }>("/api/session"),
   signIn: (userId: string) => request<{ user: User }>("/api/session", { method: "POST", body: JSON.stringify({ userId }) }),
   signOut: () => request<{ signedOut: boolean }>("/api/session", { method: "DELETE" }),
@@ -69,4 +134,51 @@ export const api = {
   unregister: (id: string) => request(`/api/sources/registrations/${encodeURIComponent(id)}`, { method: "DELETE" }),
   sources: () => request<{ sources: SourceSummary[] }>("/api/sources"),
   syncs: () => request<{ runs: SyncRun[] }>("/api/syncs"),
+  traces: () => request<{ traces: TraceSummary[] }>("/api/traces"),
+  trace: (id: string) => request<{ trace: RetrievalTrace }>(`/api/traces/${encodeURIComponent(id)}`),
+  evaluations: () => request<{ runs: EvaluationSummary[] }>("/api/evaluations"),
+  evaluation: (id: string) => request<{ run: EvaluationRun }>(`/api/evaluations/${encodeURIComponent(id)}`),
+  runEvaluation: (kind: "retrieval" | "answers") => request<{ run: EvaluationRun }>("/api/evaluations", {
+    method: "POST",
+    body: JSON.stringify({ kind }),
+  }),
+  streamChat: async (
+    input: { question: string; projectId?: string; limit?: number },
+    handlers: { onStatus(message: string): void; onDelta(text: string): void },
+  ): Promise<GroundedAnswer> => {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!response.ok || !response.body) throw new Error(`Chat request failed with ${response.status}`);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let result: GroundedAnswer | undefined;
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const event = JSON.parse(line) as {
+          type: "status" | "delta" | "result" | "error";
+          message?: string;
+          text?: string;
+          answer?: GroundedAnswer;
+          error?: { message: string };
+        };
+        if (event.type === "status" && event.message) handlers.onStatus(event.message);
+        if (event.type === "delta" && event.text) handlers.onDelta(event.text);
+        if (event.type === "result" && event.answer) result = event.answer;
+        if (event.type === "error") throw new Error(event.error?.message ?? "Chat request failed.");
+      }
+      if (done) break;
+    }
+    if (!result) throw new Error("Chat stream ended without a grounded result.");
+    return result;
+  },
 };

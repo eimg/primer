@@ -1,6 +1,6 @@
 # Primer agent guide
 
-Primer has completed Phases 1 through 5: the complete CLI pipeline, independently tested local HTTP API, local sessions/account access controls, and React content operations are implemented. The `acme-v0.1` full and later targeted live runs are preserved; `acme-v0.3` is the active verified fixture. Phase 6 adds streamed web chat plus trace and evaluation inspection over the existing API/application services. Browser code must not access SQLite or provider credentials. Primer does not index source-code bodies; Helix/Pi owns real repository exploration. Follow the delivery gates in `docs/plan.md`; do not skip to cross-project integration phases.
+Primer has completed Phases 1 through 6: the complete CLI pipeline, local HTTP API, account/content operations, streamed grounded chat, evidence navigation, account-scoped retrieval inspection, and evaluation reporting are implemented. The `acme-v0.1` full and later targeted live runs are preserved; `acme-v0.3` is the active verified fixture. Phase 7 integrations require a new explicit decision. Browser code must not access SQLite or provider credentials, and chat must derive its actor only from the active server session. Primer does not index source-code bodies; Helix/Pi owns real repository exploration.
 
 This file is an entrypoint, not the full specification.
 
@@ -68,6 +68,7 @@ src/fixture.ts      Acme fixture and stable-identity validator
 src/embeddings.ts   deterministic test adapter and official OpenRouter SDK adapter
 src/types.ts        domain and retrieval contracts
 web/                React/Vite account and content operations consuming only the API
+                    plus chat, evidence, retrieval trace, and evaluation surfaces
 test/               fixture, connector, lifecycle, HTTP, retrieval, authorization, evaluation, CLI tests
 ```
 

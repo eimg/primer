@@ -154,6 +154,12 @@
 
 **Consequence:** Phase 5 adds no web framework or second domain implementation. The API remains independently testable, provider credentials stay server-side, and development can run Vite through an API proxy while production uses one local process. The fixture session proves account-dependent behavior but is not represented as production authentication or external identity federation.
 
+### D-025 — Stream only finalized grounded answers to the web client
+
+**Decision:** The chat HTTP contract uses newline-delimited JSON. It immediately reports retrieval progress, runs the existing answer generation plus bounded citation repair, then streams the finalized answer in deltas and ends with the complete `primer.answer.v1` object. Actor identity comes only from the active server session; trace list/detail reads are actor-scoped.
+
+**Consequence:** The web interface becomes responsive without displaying provider text that might later be rejected or repaired. Time to the first answer token includes retrieval, generation, and validation, while progress events make those stages visible. A future provisional-token mode would require an explicit product decision and retraction/error UX rather than silently weakening the citation invariant.
+
 ## Resolved product questions
 
 ### Q-002 — Who is the primary user? — Resolved by D-012 and D-018
@@ -180,7 +186,7 @@ Use SQLite full-text search and an abstract exhaustive vector baseline for the s
 
 ### Q-007 — Which embedding and answer models/providers should be supported first? — Resolved by D-015
 
-Use independently configurable OpenRouter chat and embedding models. Use the official OpenRouter TypeScript SDK for embeddings and Vercel AI SDK for later chat, streaming, and agent capabilities. Select concrete model IDs by evaluating the fixture rather than hard-coding them in the product contract.
+Use independently configurable OpenRouter chat and embedding models. Use the official OpenRouter TypeScript SDK for embeddings and Vercel AI SDK for grounded chat and later agent capabilities. Select concrete model IDs by evaluating the fixture rather than hard-coding them in the product contract.
 
 ### Q-008 — How will Git be parsed structurally? — Superseded by D-022
 

@@ -4,7 +4,7 @@ import { join, relative } from "node:path";
 import { SlackExportConnector } from "./connectors/slack-export.js";
 import { processMarkdownFile } from "./markdown.js";
 import { SlackThreadProcessor } from "./slack.js";
-import type { FixtureUser, ValidationIssue, ValidationReport } from "./types.js";
+import type { FixtureUser, Project, ValidationIssue, ValidationReport } from "./types.js";
 
 interface FixtureManifest {
   datasetId: string;
@@ -15,11 +15,6 @@ interface FixtureManifest {
 interface Group {
   id: string;
   name: string;
-}
-
-interface Project {
-  id: string;
-  defaultGroupId: string;
 }
 
 interface EvaluationCase {
@@ -66,6 +61,10 @@ export async function loadFixtureIdentities(fixtureDir: string): Promise<{ users
   const users = await readJson<FixtureUser[]>(join(fixtureDir, "organization", "users.json"));
   const groups = await readJson<Group[]>(join(fixtureDir, "organization", "groups.json"));
   return { users, groups };
+}
+
+export async function loadFixtureProjects(fixtureDir: string): Promise<Project[]> {
+  return readJson<Project[]>(join(fixtureDir, "organization", "projects.json"));
 }
 
 export async function markdownFixtureFiles(fixtureDir: string): Promise<string[]> {

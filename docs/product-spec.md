@@ -1,6 +1,6 @@
 # Primer MVP product specification
 
-**Status:** Active product contract. The complete CLI milestone and Phase 5 local operations milestone are implemented: retrieval, policy, authorization, context packs, grounded answers, persisted evaluation, registered-source synchronization/removal, versioned traces, a working HTTP API, local accounts/sessions, and React content operations are verified. Web chat, trace inspection, and evaluation presentation remain planned for Phase 6.
+**Status:** Active product contract. The complete CLI and core web milestones are implemented: retrieval, policy, authorization, context packs, grounded answers, persisted evaluation, registered-source synchronization/removal, versioned traces, a working HTTP API, local accounts/sessions, React content operations, streamed chat, evidence navigation, retrieval inspection, and evaluation reporting are verified.
 
 ## Objective
 
@@ -18,7 +18,7 @@ The first milestone proves the complete pipeline without a web server or browser
 
 ### Web milestone
 
-After the CLI exit gate, a working local HTTP API adapts the same application services and was verified independently before UI dependence. The React application already consumes that API for account and content management; Phase 6 adds chat, retrieval inspection, and evaluation presentation. It must not introduce a parallel ingestion or retrieval implementation, access SQLite directly, or expose provider credentials.
+After the CLI exit gate, a working local HTTP API adapts the same application services and was verified independently before UI dependence. The React application consumes that API for account/content management, chat, retrieval inspection, and evaluation presentation. It does not introduce a parallel ingestion or retrieval implementation, access SQLite directly, or expose provider credentials.
 
 ## Initial operating scenario
 
@@ -195,7 +195,7 @@ Helix may later request a bounded initial-context pack using an actor, question,
 
 The MVP is complete only when all of the following are verified with fixed evaluation cases:
 
-- all three source types produce inspectable, source-aware records;
+- both ingestible source types produce inspectable, source-aware records; Git remains an orchestrator-owned code-context fixture rather than a Primer index;
 - at least one low-value item is visibly rejected for a documented reason;
 - lexical and semantic retrieval each recover evidence the other misses;
 - an unauthorized record never appears in candidates exposed after the authorization boundary or in model input;

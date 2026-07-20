@@ -1,6 +1,6 @@
 # Primer conceptual architecture
 
-**Status:** Phase 5 complete. The CLI and built-in Node HTTP adapters share the application services, SQLite index, connector/processor registry, registered-source lifecycle, retrieval, answer, trace, and evaluation modules. A React/Vite application consumes the HTTP API for local account and content operations. Phase 6 adds chat, trace, and evaluation presentation; an optional Pi simulation remains later. Components are logical ownership boundaries, not separate services.
+**Status:** Phase 6 complete. The CLI and built-in Node HTTP adapters share the application services, SQLite index, connector/processor registry, registered-source lifecycle, retrieval, answer, trace, and evaluation modules. The React/Vite application consumes the HTTP API for account/content operations, grounded chat, evidence navigation, retrieval inspection, and evaluation reporting. An optional Pi simulation and external integrations remain later. Components are logical ownership boundaries, not separate services.
 
 ## Delivery shape
 
@@ -37,7 +37,7 @@ src/server.ts -> src/http.ts -> the same src/services.ts
 React/Vite web application -> /api only -> src/http.ts
 ```
 
-Markdown and Slack export source processing are implemented behind independent connector registrations. Source-code bodies are deliberately outside the Primer index. Grounded answers, initial-context packs, complete synchronization/removal, the HTTP API, and React account/content operations are implemented; web chat/inspection, the optional Pi simulation, and external integrations remain phase-gated.
+Markdown and Slack export source processing are implemented behind independent connector registrations. Source-code bodies are deliberately outside the Primer index. Grounded answers, initial-context packs, complete synchronization/removal, the HTTP API, and React account/content/chat/inspection/evaluation operations are implemented; the optional Pi simulation and external integrations remain phase-gated.
 
 ## Architectural shape
 
@@ -135,7 +135,11 @@ Coordinates explicit use cases such as registering a source, synchronizing conte
 
 - The CLI maps arguments, environment, exit status, human output, and stable JSON to application services.
 - The built-in Node HTTP API maps local session-authenticated requests to the same services, serves the production web build, and is independently runnable and integration-tested.
-- The React UI consumes that API for implemented account/content operations and later chat, traces, synchronization detail, and evaluation presentation; it never accesses SQLite directly.
+- The React UI consumes that API for account/content operations, grounded chat, traces, synchronization detail, and evaluation presentation; it never accesses SQLite directly.
+
+The chat route derives actor identity exclusively from the HttpOnly session. It uses newline-delimited JSON to send immediate workflow status, then answer deltas only after the existing bounded citation-validation/repair workflow has produced its final result, followed by the complete versioned answer object. This preserves the invariant that the stable displayed answer and displayed evidence are the validated application-service output; it intentionally does not expose provisional provider tokens that may later fail citation validation.
+
+Saved trace lists and detail reads are filtered to the active actor. Evaluation reports remain an explicit local-operator capability and may run model calls when an answer suite is requested.
 
 The local web session is an explicit MVP boundary: choosing a fixture identity creates a random session identifier stored in SQLite and delivered only through an `HttpOnly`, `SameSite=Lax` cookie. It proves identity-dependent product behavior without claiming password authentication, external federation, or production deployment hardening. Safe account discovery and health/configuration are public local endpoints; operational routes require an active session. Provider credentials never enter HTTP responses or the web bundle.
 

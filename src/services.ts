@@ -4,7 +4,7 @@ import { createDefaultConnectorRegistry } from "./connectors/default.js";
 import type { ConnectorRegistry, ProcessedConnectorSource } from "./connectors/registry.js";
 import { PrimerDatabase, type StoredRecord } from "./database.js";
 import { cosineSimilarity } from "./embeddings.js";
-import { loadFixtureIdentities, validateFixture } from "./fixture.js";
+import { loadFixtureIdentities, loadFixtureProjects, validateFixture } from "./fixture.js";
 import { buildContextPack } from "./context.js";
 import { applyRankingPolicy } from "./ranking.js";
 import { isAbstentionText, validateCitations } from "./answers.js";
@@ -27,6 +27,7 @@ import {
   type IngestResult,
   type LocalSession,
   type OrchestratorContextPack,
+  type Project,
   type RetrievalCandidate,
   type RetrievalTrace,
   type RegistrationRemovalResult,
@@ -264,6 +265,10 @@ export class PrimerServices {
 
   listGroups(): Group[] {
     return this.database.listGroups();
+  }
+
+  async listProjects(): Promise<Project[]> {
+    return loadFixtureProjects(this.config.fixtureDir);
   }
 
   getUser(id: string): FixtureUser {
