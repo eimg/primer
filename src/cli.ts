@@ -18,6 +18,7 @@ Usage:
   primer sources register <path> --connector <connector-id> [--json]
   primer sources registrations [--json]
   primer sources registration <registration-id> [--json]
+  primer sources health <registration-id> [--json]
   primer sources sync [registration-id] [--json]
   primer sources ingest [path] [--connector <connector-id>] [--json]
   primer sources list [--json]
@@ -347,6 +348,17 @@ async function main(): Promise<void> {
       `Sources: ${inspected.sourceIds.join(", ") || "none"}`,
       `Runs: ${inspected.syncRuns.length}`,
     ].join("\n"));
+    return;
+  }
+  if (command === "sources" && subcommand === "health") {
+    const registrationId = rest[0];
+    if (!registrationId) throw new Error("sources health requires a registration ID");
+    const health = await withServices(config, false, (services) => services.checkSourceRegistration(registrationId));
+    print(
+      { schemaVersion: "primer.connector-health.v1", health },
+      args.json,
+      () => `${health.connectorId}\t${health.status}\t${health.checkedAt}${health.message ? `\t${health.message}` : ""}`,
+    );
     return;
   }
   if (command === "sources" && subcommand === "sync") {

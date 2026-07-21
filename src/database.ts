@@ -22,6 +22,7 @@ export interface StoredRecord extends KnowledgeRecord {
 
 interface SourceRow {
   registration_id: string | null;
+  external_id: string | null;
   source_family: string;
   source_id: string;
   source_ref: string;
@@ -100,7 +101,7 @@ export class PrimerDatabase {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
-      INSERT INTO schema_meta (key, value) VALUES ('schema_version', '4')
+      INSERT INTO schema_meta (key, value) VALUES ('schema_version', '5')
         ON CONFLICT(key) DO UPDATE SET value = excluded.value;
 
       CREATE TABLE IF NOT EXISTS groups (
@@ -119,16 +120,19 @@ export class PrimerDatabase {
         connector_id TEXT NOT NULL,
         source_family TEXT NOT NULL,
         path TEXT NOT NULL,
+        locator_json TEXT,
+        config_json TEXT NOT NULL DEFAULT '{}',
+        checkpoint_cursor TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         last_sync_at TEXT,
         last_sync_status TEXT NOT NULL DEFAULT 'never',
-        last_error TEXT,
-        UNIQUE(connector_id, path)
+        last_error TEXT
       );
       CREATE TABLE IF NOT EXISTS sources (
         source_id TEXT PRIMARY KEY,
         registration_id TEXT,
+        external_id TEXT,
         source_family TEXT NOT NULL DEFAULT 'markdown',
         source_ref TEXT NOT NULL,
         source_type TEXT NOT NULL,
@@ -225,11 +229,17 @@ export class PrimerDatabase {
     `);
     this.addColumnIfMissing("sources", "source_family", "TEXT NOT NULL DEFAULT 'markdown'");
     this.addColumnIfMissing("sources", "registration_id", "TEXT");
+    this.addColumnIfMissing("sources", "external_id", "TEXT");
+    this.addColumnIfMissing("source_registrations", "locator_json", "TEXT");
+    this.addColumnIfMissing("source_registrations", "config_json", "TEXT NOT NULL DEFAULT '{}'");
+    this.addColumnIfMissing("source_registrations", "checkpoint_cursor", "TEXT");
+    this.removeLegacyRegistrationPathConstraint();
     this.addColumnIfMissing("records", "source_family", "TEXT NOT NULL DEFAULT 'markdown'");
     this.addColumnIfMissing("sync_runs", "owner_pid", "INTEGER");
     this.db.exec("CREATE INDEX IF NOT EXISTS idx_sources_registration ON sources(registration_id)");
+    this.db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_sources_registration_external ON sources(registration_id, external_id) WHERE registration_id IS NOT NULL AND external_id IS NOT NULL");
     this.db
-      .prepare("INSERT INTO schema_meta (key, value) VALUES ('schema_version', '4') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+      .prepare("INSERT INTO schema_meta (key, value) VALUES ('schema_version', '5') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
       .run();
     this.markInterruptedSyncRuns();
     this.db.exec(
@@ -237,11 +247,39 @@ export class PrimerDatabase {
     );
   }
 
-  private addColumnIfMissing(table: "sources" | "records" | "sync_runs", column: string, definition: string): void {
+  private addColumnIfMissing(table: "sources" | "records" | "sync_runs" | "source_registrations", column: string, definition: string): void {
     const columns = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
     if (!columns.some((entry) => entry.name === column)) {
       this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
     }
+  }
+
+  private removeLegacyRegistrationPathConstraint(): void {
+    const row = this.db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'source_registrations'")
+      .get() as { sql: string } | undefined;
+    if (!row?.sql.replace(/\s+/g, " ").includes("UNIQUE(connector_id, path)")) return;
+    this.db.exec(`
+      CREATE TABLE source_registrations_v5 (
+        id TEXT PRIMARY KEY,
+        connector_id TEXT NOT NULL,
+        source_family TEXT NOT NULL,
+        path TEXT NOT NULL,
+        locator_json TEXT,
+        config_json TEXT NOT NULL DEFAULT '{}',
+        checkpoint_cursor TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        last_sync_at TEXT,
+        last_sync_status TEXT NOT NULL DEFAULT 'never',
+        last_error TEXT
+      );
+      INSERT INTO source_registrations_v5
+        SELECT id, connector_id, source_family, path, locator_json, config_json, checkpoint_cursor,
+          created_at, updated_at, last_sync_at, last_sync_status, last_error
+        FROM source_registrations;
+      DROP TABLE source_registrations;
+      ALTER TABLE source_registrations_v5 RENAME TO source_registrations;
+    `);
   }
 
   private markInterruptedSyncRuns(): void {
@@ -294,17 +332,23 @@ export class PrimerDatabase {
     this.db
       .prepare(
         `INSERT INTO source_registrations (
-          id, connector_id, source_family, path, created_at, updated_at, last_sync_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          id, connector_id, source_family, path, locator_json, config_json, checkpoint_cursor,
+          created_at, updated_at, last_sync_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           connector_id=excluded.connector_id, source_family=excluded.source_family,
-          path=excluded.path, updated_at=excluded.updated_at`,
+          path=excluded.path, locator_json=excluded.locator_json, config_json=excluded.config_json,
+          checkpoint_cursor=COALESCE(excluded.checkpoint_cursor, source_registrations.checkpoint_cursor),
+          updated_at=excluded.updated_at`,
       )
       .run(
         registration.id,
         registration.connectorId,
         registration.sourceFamily,
         registration.path,
+        JSON.stringify(registration.locator ?? { type: "local-path", value: registration.path }),
+        JSON.stringify(registration.config ?? {}),
+        registration.checkpointCursor ?? null,
         registration.createdAt,
         registration.updatedAt,
         registration.lastSyncStatus,
@@ -315,7 +359,7 @@ export class PrimerDatabase {
   listSourceRegistrations(): SourceRegistration[] {
     const rows = this.db
       .prepare(
-        `SELECT id, connector_id, source_family, path, created_at, updated_at,
+        `SELECT id, connector_id, source_family, path, locator_json, config_json, checkpoint_cursor, created_at, updated_at,
           last_sync_at, last_sync_status, last_error
         FROM source_registrations ORDER BY id`,
       )
@@ -324,6 +368,9 @@ export class PrimerDatabase {
       connector_id: string;
       source_family: string;
       path: string;
+      locator_json: string | null;
+      config_json: string;
+      checkpoint_cursor: string | null;
       created_at: string;
       updated_at: string;
       last_sync_at: string | null;
@@ -335,6 +382,11 @@ export class PrimerDatabase {
       connectorId: row.connector_id,
       sourceFamily: row.source_family,
       path: row.path,
+      locator: row.locator_json
+        ? JSON.parse(row.locator_json) as NonNullable<SourceRegistration["locator"]>
+        : { type: "local-path", value: row.path },
+      config: JSON.parse(row.config_json) as Record<string, unknown>,
+      ...(row.checkpoint_cursor ? { checkpointCursor: row.checkpoint_cursor } : {}),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       ...(row.last_sync_at ? { lastSyncAt: row.last_sync_at } : {}),
@@ -345,6 +397,17 @@ export class PrimerDatabase {
 
   getSourceRegistration(id: string): SourceRegistration | undefined {
     return this.listSourceRegistrations().find((registration) => registration.id === id);
+  }
+
+  saveRegistrationCheckpoint(id: string, checkpointCursor?: string): void {
+    this.db.prepare("UPDATE source_registrations SET checkpoint_cursor = ?, updated_at = ? WHERE id = ?")
+      .run(checkpointCursor ?? null, nowIso(), id);
+  }
+
+  sourceIdForExternalId(registrationId: string, externalId: string): string | undefined {
+    const row = this.db.prepare("SELECT source_id FROM sources WHERE registration_id = ? AND external_id = ?")
+      .get(registrationId, externalId) as { source_id: string } | undefined;
+    return row?.source_id;
   }
 
   listSourceIdsForRegistration(registrationId: string): string[] {
@@ -532,8 +595,9 @@ export class PrimerDatabase {
       : undefined;
   }
 
-  assignSourceRegistration(sourceId: string, registrationId: string): void {
-    this.db.prepare("UPDATE sources SET registration_id = ? WHERE source_id = ?").run(registrationId, sourceId);
+  assignSourceRegistration(sourceId: string, registrationId: string, externalId?: string): void {
+    this.db.prepare("UPDATE sources SET registration_id = ?, external_id = COALESCE(?, external_id) WHERE source_id = ?")
+      .run(registrationId, externalId ?? null, sourceId);
   }
 
   replaceSource(
@@ -542,6 +606,7 @@ export class PrimerDatabase {
     embeddingModel: string,
     processorVersion: string,
     registrationId?: string,
+    externalId?: string,
   ): void {
     if (processed.records.length !== embeddings.length) throw new Error("Embedding count does not match accepted records");
     const source = processed.source;
@@ -560,12 +625,13 @@ export class PrimerDatabase {
       this.db
         .prepare(
           `INSERT INTO sources (
-            source_id, registration_id, source_family, source_ref, source_type, source_version, raw_content, project_id,
+            source_id, registration_id, external_id, source_family, source_ref, source_type, source_version, raw_content, project_id,
             created_at, updated_at, authors_json, metadata_json, access_json,
             processor_version, embedding_model, indexed_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(source_id) DO UPDATE SET
             registration_id=COALESCE(excluded.registration_id, sources.registration_id),
+            external_id=COALESCE(excluded.external_id, sources.external_id),
             source_family=excluded.source_family, source_ref=excluded.source_ref, source_type=excluded.source_type,
             source_version=excluded.source_version, raw_content=excluded.raw_content,
             project_id=excluded.project_id, created_at=excluded.created_at,
@@ -577,6 +643,7 @@ export class PrimerDatabase {
         .run(
           source.sourceId,
           registrationId ?? null,
+          externalId ?? null,
           source.source,
           source.sourceRef,
           source.sourceType,
@@ -640,7 +707,7 @@ export class PrimerDatabase {
 
   listSources(): Array<SourceRow & { accepted: number; rejected: number }> {
     return this.db
-      .prepare(`SELECT s.registration_id, s.source_family, s.source_id, s.source_ref, s.source_type, s.source_version, s.project_id,
+      .prepare(`SELECT s.registration_id, s.external_id, s.source_family, s.source_id, s.source_ref, s.source_type, s.source_version, s.project_id,
           s.updated_at, s.metadata_json, s.access_json, s.processor_version, s.embedding_model, s.indexed_at,
           SUM(CASE WHEN d.decision='accepted' THEN 1 ELSE 0 END) accepted,
           SUM(CASE WHEN d.decision='rejected' THEN 1 ELSE 0 END) rejected

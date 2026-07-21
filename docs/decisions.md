@@ -160,6 +160,14 @@
 
 **Consequence:** The web interface becomes responsive without displaying provider text that might later be rejected or repaired. Time to the first answer token includes retrieval, generation, and validation, while progress events make those stages visible. A future provisional-token mode would require an explicit product decision and retraction/error UX rather than silently weakening the citation invariant.
 
+### D-026 — Prepare one external connector protocol while retaining local data
+
+**Decision:** Implement `primer.connector.v1` as a transport-neutral acquisition contract now, but continue using only local fixture sources until Primer's core is hardened for real internal testing. Local Markdown and Slack exports are in-process reference providers. Future email, CRM, HRM, Slack, Teams, and similar connectors are independently deployed components that own vendor APIs, credentials, rate limits, native pagination, and ACL translation. They communicate with Primer through HTTP using semantic artifact kinds: `document`, `conversation`, `business-record`, or `event`.
+
+The contract carries stable external identity and revision, provenance, raw content, canonical metadata, opaque registration configuration, page and checkpoint cursors, snapshot or incremental mode, health, and tombstones. Primer retains normalization validation, canonical source and record construction, authorization enforcement, indexing, embeddings, retrieval, evidence, tracing, and answer generation. External connectors never write the index or generate vectors or final evidence.
+
+**Consequence:** No live vendor connector is required to finish or harden Primer, and no vendor SDK enters this repository. The existing local connectors require no rewrite and prove the same provider boundary in process. A simulated HTTP conformance surface verifies pagination, idempotency, ACL-only changes, deletion, duplicate delivery, schema mismatch, failure recovery, and checkpoint safety before independently developed connectors are accepted. MCP remains optional for a later source-native exploration capability and is not the ordinary synchronization transport.
+
 ## Resolved product questions
 
 ### Q-002 — Who is the primary user? — Resolved by D-012 and D-018

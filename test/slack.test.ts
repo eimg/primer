@@ -32,10 +32,14 @@ test("Slack export connector and processor emit stable thread records and visibl
 test("Markdown and Slack connectors ingest independently and remain idempotent", async () => {
   const context = await createTestServices();
   try {
-    assert.deepEqual(context.services.listConnectors(), [
+    const connectors = context.services.listConnectors();
+    assert.deepEqual(connectors.filter((connector) => connector.transport === "local").map(({ connectorId, sourceFamily, processorVersion }) => ({ connectorId, sourceFamily, processorVersion })), [
       { connectorId: "markdown-local", sourceFamily: "markdown", processorVersion: "markdown-v1" },
       { connectorId: "slack-export", sourceFamily: "slack", processorVersion: "slack-thread-v1" },
     ]);
+    assert.ok(connectors.every((connector) => connector.contractVersion === "primer.connector.v1"));
+    assert.equal(connectors.filter((connector) => connector.transport === "local").length, 2);
+    assert.equal(connectors.filter((connector) => connector.transport === "http").length, 4);
     const first = await context.services.ingest();
     assert.equal(first.length, 22);
     assert.equal(first.filter((result) => result.sourceFamily === "markdown").length, 10);

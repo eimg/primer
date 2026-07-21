@@ -347,16 +347,25 @@ export class PrimerServices {
     };
   }
 
-  registerSource(input: { connectorId: string; path: string }): SourceRegistration {
-    const path = resolve(input.path);
-    this.connectors.assertSupports(input.connectorId, path);
+  registerSource(input: {
+    connectorId: string;
+    path?: string;
+    locator?: import("./connectors/contracts.js").ConnectorLocator;
+    config?: Record<string, unknown>;
+  }): SourceRegistration {
+    if (!input.path && !input.locator) throw new Error("Source registration requires a path or locator.");
+    const provided = input.locator ?? { type: "local-path" as const, value: input.path! };
+    const locator = provided.type === "local-path" ? { ...provided, value: resolve(provided.value) } : provided;
+    this.connectors.assertSupports(input.connectorId, locator);
     const connector = this.connectors.describe(input.connectorId);
     const timestamp = nowIso();
     return this.database.registerSource({
-      id: `reg_${checksum(`${input.connectorId}\0${path}`).slice(0, 16)}`,
+      id: `reg_${checksum(`${input.connectorId}\0${JSON.stringify(locator)}\0${JSON.stringify(input.config ?? {})}`).slice(0, 16)}`,
       connectorId: input.connectorId,
       sourceFamily: connector.sourceFamily,
-      path,
+      locator,
+      config: input.config ?? {},
+      path: locator.value,
       createdAt: timestamp,
       updatedAt: timestamp,
       lastSyncStatus: "never",
@@ -383,13 +392,23 @@ export class PrimerServices {
     };
   }
 
+  async checkSourceRegistration(id: string) {
+    const registration = this.database.getSourceRegistration(id);
+    if (!registration) throw new Error(`Unknown source registration: ${id}`);
+    return this.connectors.health(
+      registration.connectorId,
+      registration.locator ?? { type: "local-path", value: registration.path },
+      registration.config ?? {},
+    );
+  }
+
   private async indexProcessedSources(
     sources: ProcessedConnectorSource[],
     registrationId?: string,
     timing?: Pick<SyncTiming, "embedding" | "indexWrite">,
   ): Promise<IngestResult[]> {
     const results: IngestResult[] = [];
-    for (const { connectorId, processorVersion, processed } of sources) {
+    for (const { connectorId, externalId, processorVersion, processed } of sources) {
       const previous = this.database.getSourceVersion(processed.source.sourceId);
       if (registrationId && previous?.registrationId && previous.registrationId !== registrationId) {
         throw new Error(
@@ -406,7 +425,7 @@ export class PrimerServices {
         previous.processorVersion === processorVersion &&
         previous.embeddingModel === this.embeddings.modelId
       ) {
-        if (registrationId) this.database.assignSourceRegistration(processed.source.sourceId, registrationId);
+        if (registrationId) this.database.assignSourceRegistration(processed.source.sourceId, registrationId, externalId);
         results.push({
           connectorId,
           sourceFamily: processed.source.source,
@@ -424,7 +443,7 @@ export class PrimerServices {
       );
       if (timing) timing.embedding += elapsedMs(embeddingStart);
       const writeStart = process.hrtime.bigint();
-      this.database.replaceSource(processed, vectors, this.embeddings.modelId, processorVersion, registrationId);
+      this.database.replaceSource(processed, vectors, this.embeddings.modelId, processorVersion, registrationId, externalId);
       if (timing) timing.indexWrite += elapsedMs(writeStart);
       results.push({
         connectorId,
@@ -492,17 +511,27 @@ export class PrimerServices {
     this.database.saveSyncRun(run);
     try {
       const processStart = process.hrtime.bigint();
-      const sources = await this.connectors.process({
+      const acquisition = await this.connectors.acquire({
         connectorId: registration.connectorId,
-        path: registration.path,
+        locator: registration.locator ?? { type: "local-path", value: registration.path },
+        config: registration.config ?? {},
+        ...(registration.checkpointCursor ? { checkpointCursor: registration.checkpointCursor } : {}),
       });
       timingMs.acquisitionAndProcessing = elapsedMs(processStart);
       const previousSourceIds = this.database.listSourceIdsForRegistration(registration.id);
-      const results = await this.indexProcessedSources(sources, registration.id, timingMs);
+      const results = await this.indexProcessedSources(acquisition.processed, registration.id, timingMs);
       const observed = new Set(results.map((result) => result.sourceId));
-      const removedSourceIds = previousSourceIds.filter((sourceId) => !observed.has(sourceId));
+      const removedSourceIds = acquisition.mode === "snapshot"
+        ? previousSourceIds.filter((sourceId) => !observed.has(sourceId))
+        : [...new Set(acquisition.tombstones.flatMap((tombstone) => {
+            const mapped = this.database.sourceIdForExternalId(registration.id, tombstone.externalId);
+            if (mapped) return [mapped];
+            if (tombstone.sourceId && previousSourceIds.includes(tombstone.sourceId)) return [tombstone.sourceId];
+            return [];
+          }))];
       const cleanupStart = process.hrtime.bigint();
       for (const sourceId of removedSourceIds) this.database.removeSource(sourceId);
+      this.database.saveRegistrationCheckpoint(registration.id, acquisition.checkpointCursor);
       timingMs.cleanup = elapsedMs(cleanupStart);
       timingMs.total = elapsedMs(totalStart);
       run = { ...run, status: "completed", results, removedSourceIds, timingMs, completedAt: nowIso() };

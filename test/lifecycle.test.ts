@@ -3,6 +3,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync,
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import Database from "better-sqlite3";
 import { loadConfig } from "../src/config.js";
 import { PrimerDatabase } from "../src/database.js";
 import type { SyncRun } from "../src/types.js";
@@ -18,11 +19,12 @@ test("registered source synchronization accounts for unchanged, changed, removed
   try {
     const registration = context.services.registerSource({ connectorId: "markdown-local", path: sourceRoot });
     assert.equal(registration.lastSyncStatus, "never");
+    assert.equal((await context.services.checkSourceRegistration(registration.id)).status, "available");
 
     const [initial] = await context.services.synchronize({ registrationId: registration.id });
     assert.equal(initial?.status, "completed");
     assert.equal(initial?.results[0]?.status, "indexed");
-    assert.equal(initial?.storageSchemaVersion, 4);
+    assert.equal(initial?.storageSchemaVersion, 5);
     assert.equal(initial?.policyVersion, "index-v1");
     assert.ok((initial?.timingMs.total ?? -1) >= 0);
 
@@ -154,7 +156,7 @@ test("a running synchronization is recovered as interrupted when the database re
       sourceFamily: "markdown",
       status: "running",
       applicationVersion: "0.1.0",
-      storageSchemaVersion: 4,
+      storageSchemaVersion: 5,
       processorVersion: "markdown-v1",
       policyVersion: "index-v1",
       embeddingModel: "deterministic/hash-256-v1",
@@ -170,6 +172,56 @@ test("a running synchronization is recovered as interrupted when the database re
     database = new PrimerDatabase(config.databasePath);
     assert.equal(database.getSyncRun(running.id)?.status, "interrupted");
     assert.equal(database.getSourceRegistration(running.registrationId)?.lastSyncStatus, "interrupted");
+  } finally {
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("storage schema v5 migrates legacy path registrations to typed locators", () => {
+  const directory = mkdtempSync(join(tmpdir(), "primer-v4-migration-test-"));
+  const databasePath = join(directory, "primer.db");
+  const legacy = new Database(databasePath);
+  const timestamp = new Date().toISOString();
+  legacy.exec(`
+    CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    INSERT INTO schema_meta (key, value) VALUES ('schema_version', '4');
+    CREATE TABLE source_registrations (
+      id TEXT PRIMARY KEY,
+      connector_id TEXT NOT NULL,
+      source_family TEXT NOT NULL,
+      path TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      last_sync_at TEXT,
+      last_sync_status TEXT NOT NULL DEFAULT 'never',
+      last_error TEXT,
+      UNIQUE(connector_id, path)
+    );
+  `);
+  legacy.prepare(`INSERT INTO source_registrations
+    (id, connector_id, source_family, path, created_at, updated_at, last_sync_status)
+    VALUES (?, ?, ?, ?, ?, ?, 'never')`)
+    .run("reg_legacy", "markdown-local", "markdown", "/knowledge", timestamp, timestamp);
+  legacy.close();
+
+  const database = new PrimerDatabase(databasePath);
+  try {
+    const migrated = database.getSourceRegistration("reg_legacy");
+    assert.deepEqual(migrated?.locator, { type: "local-path", value: "/knowledge" });
+    assert.deepEqual(migrated?.config, {});
+    database.registerSource({
+      id: "reg_same_locator_new_config",
+      connectorId: "markdown-local",
+      sourceFamily: "markdown",
+      path: "/knowledge",
+      locator: { type: "local-path", value: "/knowledge" },
+      config: { scope: "second" },
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      lastSyncStatus: "never",
+    });
+    assert.equal(database.listSourceRegistrations().length, 2);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });

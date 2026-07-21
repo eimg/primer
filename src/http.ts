@@ -66,6 +66,12 @@ function optionalString(value: unknown, field: string): string | undefined {
   return requiredString(value, field);
 }
 
+function optionalObject(value: unknown, field: string): Record<string, unknown> | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${field} must be an object.`);
+  return value as Record<string, unknown>;
+}
+
 function evidenceLimit(value: unknown): number {
   if (value === undefined) return 5;
   if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > 10) {
@@ -267,9 +273,18 @@ export async function createPrimerHttpApp(
       }
       if (request.method === "POST" && pathname === "/api/sources/registrations") {
         const body = await readJson(request);
+        const locatorInput = optionalObject(body.locator, "locator");
+        const locator = locatorInput ? {
+          type: requiredString(locatorInput.type, "locator.type") as "local-path" | "http",
+          value: requiredString(locatorInput.value, "locator.value"),
+        } : undefined;
+        if (locator && locator.type !== "local-path" && locator.type !== "http") {
+          throw new Error("locator.type must be local-path or http.");
+        }
         const registration = services.registerSource({
           connectorId: requiredString(body.connectorId, "connectorId"),
-          path: requiredString(body.path, "path"),
+          ...(locator ? { locator } : { path: requiredString(body.path, "path") }),
+          config: optionalObject(body.config, "config") ?? {},
         });
         sendJson(response, 201, { schemaVersion: "primer.source-registration.v1", registration });
         return;
@@ -281,6 +296,12 @@ export async function createPrimerHttpApp(
       }
       if (registrationRoute && request.method === "DELETE") {
         sendJson(response, 200, services.unregisterSource(decodeURIComponent(registrationRoute[1]!)));
+        return;
+      }
+      const registrationHealthRoute = /^\/api\/sources\/registrations\/([^/]+)\/health$/.exec(pathname);
+      if (registrationHealthRoute && request.method === "GET") {
+        const health = await services.checkSourceRegistration(decodeURIComponent(registrationHealthRoute[1]!));
+        sendJson(response, 200, { schemaVersion: "primer.connector-health.v1", health });
         return;
       }
       const syncRegistrationRoute = /^\/api\/sources\/registrations\/([^/]+)\/sync$/.exec(pathname);

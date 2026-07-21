@@ -8,12 +8,23 @@ export interface User {
 
 export interface Group { id: string; name: string }
 export interface Project { id: string; code: string; name: string; description: string; defaultGroupId: string }
-export interface Connector { connectorId: string; sourceFamily: string; processorVersion: string }
+export interface Connector {
+  contractVersion: string;
+  connectorId: string;
+  sourceFamily: string;
+  transport: "local" | "http";
+  artifactKinds: string[];
+  capabilities: { pagination: boolean; incrementalSync: boolean; tombstones: boolean; health: boolean };
+  processorVersion?: string;
+}
 export interface Registration {
   id: string;
   connectorId: string;
   sourceFamily: string;
   path: string;
+  locator?: { type: "local-path" | "http"; value: string };
+  config?: Record<string, unknown>;
+  checkpointCursor?: string;
   lastSyncStatus: "never" | "completed" | "failed" | "interrupted";
   lastSyncAt?: string;
   lastError?: string;
@@ -144,7 +155,7 @@ export const api = {
   }),
   streamChat: async (
     input: { question: string; projectId?: string; limit?: number },
-    handlers: { onStatus(message: string): void; onDelta(text: string): void },
+    handlers: { onStatus(message: string): void; onDelta?(text: string): void },
   ): Promise<GroundedAnswer> => {
     const response = await fetch("/api/chat", {
       method: "POST",
@@ -172,7 +183,7 @@ export const api = {
           error?: { message: string };
         };
         if (event.type === "status" && event.message) handlers.onStatus(event.message);
-        if (event.type === "delta" && event.text) handlers.onDelta(event.text);
+        if (event.type === "delta" && event.text) handlers.onDelta?.(event.text);
         if (event.type === "result" && event.answer) result = event.answer;
         if (event.type === "error") throw new Error(event.error?.message ?? "Chat request failed.");
       }

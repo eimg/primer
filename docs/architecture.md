@@ -1,6 +1,6 @@
 # Primer conceptual architecture
 
-**Status:** Phase 6 complete. The CLI and built-in Node HTTP adapters share the application services, SQLite index, connector/processor registry, registered-source lifecycle, retrieval, answer, trace, and evaluation modules. The React/Vite application consumes the HTTP API for account/content operations, grounded chat, evidence navigation, retrieval inspection, and evaluation reporting. An optional Pi simulation and external integrations remain later. Components are logical ownership boundaries, not separate services.
+**Status:** Phase 6 and external-connector readiness complete. The CLI and built-in Node HTTP adapters share the application services, SQLite index, connector/processor registry, registered-source lifecycle, retrieval, answer, trace, and evaluation modules. `primer.connector.v1` supports local and HTTP acquisition through the same synchronization workflow. The React/Vite application consumes the HTTP API for account/content operations, grounded chat, evidence navigation, retrieval inspection, and evaluation reporting. Live connectors, an optional Pi simulation, and ecosystem integrations remain later. Components are logical ownership boundaries, not separate services.
 
 ## Delivery shape
 
@@ -37,7 +37,7 @@ src/server.ts -> src/http.ts -> the same src/services.ts
 React/Vite web application -> /api only -> src/http.ts
 ```
 
-Markdown and Slack export source processing are implemented behind independent connector registrations. Source-code bodies are deliberately outside the Primer index. Grounded answers, initial-context packs, complete synchronization/removal, the HTTP API, and React account/content/chat/inspection/evaluation operations are implemented; the optional Pi simulation and external integrations remain phase-gated.
+Markdown and Slack export source processing are implemented as local reference providers. Four vendor-neutral HTTP providers accept canonical `document`, `conversation`, `business-record`, and `event` artifacts from future independently deployed connectors. Source-code bodies are deliberately outside the Primer index. Grounded answers, initial-context packs, complete synchronization/removal, the HTTP API, and React account/content/chat/inspection/evaluation operations are implemented; the optional Pi simulation and live integrations remain phase-gated.
 
 ## Architectural shape
 
@@ -45,7 +45,7 @@ Primer is a pipeline with two paths over a derived index: synchronization and in
 
 ```text
 SYNCHRONIZATION
-source adapters
+connector providers (`primer.connector.v1`)
   -> source-aware processors
   -> index policy
   -> record writer
@@ -73,13 +73,21 @@ The architecture nevertheless distinguishes three concerns so a future source ad
 2. **Evidence normalization** converts selected material into the canonical, permission-checked, attributable evidence shape.
 3. **Durable indexing** persists normalized records for repeatability, cross-source retrieval, latency, and evaluation.
 
-A later connector may support `explore`, `ingest`, or both. Exploration results cannot flow directly to an answer model: anything used as evidence must still pass authorization, normalization, provenance capture, evidence construction, and tracing. Native discovery is an extension point, not part of the current CLI phases, and the existing connector contract does not yet promise an exploration API.
+A later connector may support `explore`, `ingest`, or both. Exploration results cannot flow directly to an answer model: anything used as evidence must still pass authorization, normalization, provenance capture, evidence construction, and tracing. Native discovery is an extension point, not part of the current CLI phases, and `primer.connector.v1` intentionally covers synchronization rather than exploration.
+
+### External connector boundary
+
+Primer does not contain email, CRM, HRM, Teams, or other vendor SDKs. A later independently deployed connector owns its vendor API, credentials, pagination, webhook or polling behavior, rate limits, and native ACL translation. It exposes `primer.connector.v1` over HTTP and emits one of four semantic artifact kinds. Primer owns schema validation, source processing, authorization enforcement, indexing, embeddings, retrieval, evidence, and answers.
+
+Registrations persist an opaque typed locator, non-secret connector configuration, the last committed checkpoint, and synchronization history. Page cursors are transient within one acquisition; the checkpoint advances only after acquisition, processing, indexing, and deletion handling complete. Snapshot mode removes previously managed sources not observed in the completed snapshot. Incremental mode removes only explicit tombstones, mapped through the connector's stable external identity. Duplicate external identities, repeated page cursors, family or kind mismatches, and unsupported contract versions fail before the checkpoint advances.
+
+The local Markdown and Slack providers exercise the same provider interface in process. A simulated HTTP provider in the conformance tests proves that remote transport, pagination, updates, ACL-only changes, interruption, checkpoint retention, and tombstones do not require vendor-specific code inside Primer.
 
 ## Ownership boundaries
 
-### Source adapter
+### Connector provider
 
-Acquires native source items and preserves connector identity, native URL or local reference, raw content, and connector-specific metadata. It does not parse content into retrieval records, embed content, decide answer relevance, or write the index.
+Acquires native source items and preserves connector identity, stable external identity and revision, semantic artifact kind, native URL or local reference, raw content, canonical ACL and ownership fields where available, and connector-specific metadata. It may run in process or behind HTTP. It does not embed content, decide answer relevance, write retrieval storage, or generate answer evidence.
 
 ### Source processor
 
@@ -151,10 +159,24 @@ Names and fields may change during implementation, but the semantic distinctions
 
 ```ts
 type ConnectorItem = {
+  schemaVersion: "primer.connector.v1";
   connectorId: string;
   sourceFamily: string;
+  artifactKind: "document" | "conversation" | "business-record" | "event";
+  externalId: string;
+  revision: string;
   sourceRef: string;
   rawContent: string;
+  canonical?: {
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+    authors: string[];
+    projectId?: string;
+    access: AccessDescriptor;
+    authority: number;
+    resolutionState?: "proposed" | "resolved" | "superseded";
+  };
   metadata: Record<string, unknown>;
 };
 

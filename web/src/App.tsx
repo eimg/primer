@@ -179,7 +179,7 @@ export function App() {
       <section className="panel register-panel">
         <div><p className="eyebrow">Add knowledge</p><h3>Register a source location</h3></div>
         <form onSubmit={(event) => void registerSource(event)}>
-          <label><span>Connector</span><select value={connectorId} onChange={(event) => setConnectorId(event.target.value)}>{connectors.map((connector) => <option key={connector.connectorId} value={connector.connectorId}>{connector.connectorId} · {connector.sourceFamily}</option>)}</select></label>
+          <label><span>Connector</span><select value={connectorId} onChange={(event) => setConnectorId(event.target.value)}>{connectors.filter((connector) => connector.transport === "local").map((connector) => <option key={connector.connectorId} value={connector.connectorId}>{connector.connectorId} · {connector.sourceFamily}</option>)}</select></label>
           <label className="path-field"><span>Local path</span><input value={path} onChange={(event) => setPath(event.target.value)} placeholder="/path/to/knowledge" /></label>
           <button className="primary" disabled={busy === "register"}>{busy === "register" ? "Registering…" : "Register source"}</button>
         </form>

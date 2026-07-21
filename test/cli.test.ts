@@ -34,7 +34,7 @@ test("CLI JSON contracts cover init, ingest, and retrieval", () => {
       (JSON.parse(connectors.stdout) as { connectors: Array<{ connectorId: string }> }).connectors.map(
         (connector) => connector.connectorId,
       ),
-      ["markdown-local", "slack-export"],
+      ["business-record-http", "conversation-http", "document-http", "event-http", "markdown-local", "slack-export"],
     );
 
     const configuration = runCli(dataDir, ["config", "show", "--json"]);
@@ -45,7 +45,7 @@ test("CLI JSON contracts cover init, ingest, and retrieval", () => {
       policyVersion: string;
     };
     assert.equal(configResult.schemaVersion, "primer.config.v1");
-    assert.equal(configResult.storageSchemaVersion, 4);
+    assert.equal(configResult.storageSchemaVersion, 5);
     assert.equal(configResult.policyVersion, "index-v1");
 
     const registered = runCli(dataDir, [
@@ -58,6 +58,10 @@ test("CLI JSON contracts cover init, ingest, and retrieval", () => {
     ]);
     assert.equal(registered.status, 0, registered.stderr);
     const registrationId = (JSON.parse(registered.stdout) as { registration: { id: string } }).registration.id;
+
+    const health = runCli(dataDir, ["sources", "health", registrationId, "--json"]);
+    assert.equal(health.status, 0, health.stderr);
+    assert.equal((JSON.parse(health.stdout) as { health: { status: string } }).health.status, "available");
 
     const synchronized = runCli(dataDir, ["sources", "sync", registrationId, "--json"]);
     assert.equal(synchronized.status, 0, synchronized.stderr);
@@ -92,7 +96,7 @@ test("CLI JSON contracts cover init, ingest, and retrieval", () => {
       evidence: Array<{ recordId: string }>;
     };
     assert.equal(trace.schemaVersion, "primer.retrieval.v3");
-    assert.equal(trace.storageSchemaVersion, 4);
+    assert.equal(trace.storageSchemaVersion, 5);
     assert.equal(trace.policyVersion, "index-v1");
     assert.equal(trace.processorVersions.markdown, "markdown-v1");
     assert.equal(trace.evidence[0]?.recordId, "md:md-cc-imports#account-owner-mapping");

@@ -87,6 +87,12 @@ test("HTTP API runs independently and reuses account and content application ser
       await registrationResponse.json() as { registration: { id: string } }
     ).registration.id;
 
+    const connectorHealth = await fetch(`${baseUrl}/api/sources/registrations/${registrationId}/health`, {
+      headers: { cookie: cookie! },
+    });
+    assert.equal(connectorHealth.status, 200);
+    assert.equal((await connectorHealth.json() as { health: { status: string } }).health.status, "available");
+
     const synchronized = await fetch(`${baseUrl}/api/sources/registrations/${registrationId}/sync`, {
       method: "POST",
       headers: { cookie: cookie! },

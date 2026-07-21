@@ -1,6 +1,6 @@
 # Primer agent guide
 
-Primer has completed Phases 1 through 6: the complete CLI pipeline, local HTTP API, account/content operations, streamed grounded chat, evidence navigation, account-scoped retrieval inspection, and evaluation reporting are implemented. The `acme-v0.1` full and later targeted live runs are preserved; `acme-v0.3` is the active verified fixture. Phase 7 integrations require a new explicit decision. Browser code must not access SQLite or provider credentials, and chat must derive its actor only from the active server session. Primer does not index source-code bodies; Helix/Pi owns real repository exploration.
+Primer has completed Phases 1 through 6 plus the external-connector readiness gate: the complete CLI pipeline, local HTTP API, account/content operations, streamed grounded chat, evidence navigation, account-scoped retrieval inspection, evaluation reporting, and `primer.connector.v1` protocol are implemented. The product continues to use only local fixture data; live vendor connectors remain deferred until core hardening and internal-test readiness are complete. The `acme-v0.1` full and later targeted live runs are preserved; `acme-v0.3` is the active verified fixture. Browser code must not access SQLite or provider credentials, and chat must derive its actor only from the active server session. Primer does not index source-code bodies; Helix/Pi owns real repository exploration.
 
 This file is an entrypoint, not the full specification.
 
@@ -61,7 +61,8 @@ src/http.ts         local HTTP API, HttpOnly sessions, and production web servin
 src/server.ts       API/web process entrypoint and graceful shutdown
 src/services.ts     application use cases, retrieval, fusion, evidence, evaluation
 src/database.ts     SQLite schema, record writer, FTS, traces, evaluation runs
-src/connectors/     independent acquisition contracts, registry, and local connectors
+src/connectors/     independent acquisition contracts, registry, local connectors,
+                    semantic HTTP providers, and canonical artifact processing
 src/markdown.ts     frontmatter and heading-aware Markdown processor
 src/slack.ts        deterministic Slack thread processor
 src/fixture.ts      Acme fixture and stable-identity validator

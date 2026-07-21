@@ -4,7 +4,7 @@ Primer is an inspectable knowledge system for turning organizational sources int
 
 Primer turns source material into authorized, ranked evidence and uses that evidence to produce cited answers. Its primary product is not a chat box. It is a trustworthy answer system with transparent decisions between ingestion and generation.
 
-Primer has completed its CLI and core web milestones. A working HTTP API and React interface reuse the same SQLite, retrieval, authorization, answer, trace, synchronization, and evaluation services as the CLI. The web application supports local identity/session selection, effective-group management, content operations, streamed grounded chat, citation/evidence navigation, account-scoped retrieval inspection, and persisted evaluation reporting. Primer supplies organizational context; source-code exploration is delegated to Helix's Pi harness in real workflows.
+Primer has completed its CLI and core web milestones. A working HTTP API and React interface reuse the same SQLite, retrieval, authorization, answer, trace, synchronization, and evaluation services as the CLI. The web application supports local identity/session selection, effective-group management, content operations, streamed grounded chat, citation/evidence navigation, account-scoped retrieval inspection, and persisted evaluation reporting. Primer also implements the versioned `primer.connector.v1` acquisition boundary while continuing to use only local fixture data. Primer supplies organizational context; source-code exploration is delegated to Helix's Pi harness in real workflows.
 
 ## Web application
 
@@ -16,6 +16,7 @@ Primer has completed its CLI and core web milestones. A working HTTP API and Rea
 - [`docs/vision.md`](./docs/vision.md) — product purpose, principles, audience, and long-term direction.
 - [`docs/product-spec.md`](./docs/product-spec.md) — MVP behavior, scope, user journeys, and acceptance criteria.
 - [`docs/architecture.md`](./docs/architecture.md) — conceptual components, ownership boundaries, and data flow.
+- [`docs/connector-contract.md`](./docs/connector-contract.md) — implemented external connector protocol and conformance rules.
 - [`docs/evaluation.md`](./docs/evaluation.md) — how retrieval, citations, permissions, and updates will be judged.
 - [`docs/plan.md`](./docs/plan.md) — decision gates and staged delivery plan.
 - [`docs/decisions.md`](./docs/decisions.md) — settled decisions, resolved questions, and the process for later changes.
@@ -34,8 +35,8 @@ The CLI currently supports:
 
 - fixture validation and local SQLite initialization;
 - fixture identity listing and inspection;
-- independently registered local Markdown and Slack export connectors;
-- persisted content registrations with stable IDs;
+- independently registered local Markdown and Slack export connectors plus external-ready semantic HTTP providers;
+- persisted content registrations with stable IDs, typed locators, connector configuration, health, and checkpoints;
 - explicit synchronization with indexed, replaced, unchanged, removed, failed, and interrupted outcomes;
 - preserved synchronization history, stage timing, processor/policy/model versions, and explicit derived-content removal;
 - heading-aware Markdown records and thread-aware Slack records with stable checksums and IDs;
@@ -90,6 +91,7 @@ npm run dev:offline -- config show
 npm run dev:offline -- sources register sample-data/acme/sources/markdown --connector markdown-local
 npm run dev:offline -- sources sync <registration-id>
 npm run dev:offline -- sources registrations
+npm run dev:offline -- sources health <registration-id>
 npm run dev:offline -- syncs list
 npm run dev:offline -- retrieve "What does CC_IMPORT_017 mean?" --user u-maya --project clientcore
 npm run dev:offline -- context "Why did TalentFlow send duplicate interview reminders?" --user u-owen --project talentflow
@@ -111,6 +113,8 @@ npm run dev -- evaluate answers --case rf-eval-008 --case rf-eval-012
 ```
 
 The baseline scripts retain `sources ingest` as a one-shot fixture convenience. Managed content should use `sources register` and `sources sync`, which can account for removals and preserve synchronization status and history. The live baseline sends accepted synthetic Markdown and Slack thread content to the configured OpenRouter embedding model and persists the returned vectors under `.primer/`. Re-running it with unchanged content, processor version, and embedding model reports sources as `unchanged` and does not re-embed them. Each retrieval still embeds its new query. `ask` sends only the final authorized evidence, constraints, conflicts, question, and answer rules to the configured chat model. Deterministic providers exist for repeatable tests and offline development; they are not substitutes for recorded live baselines.
+
+The content UI intentionally lists only local connectors for now. The API and application services can register `http` locators for the semantic `document-http`, `conversation-http`, `business-record-http`, and `event-http` providers. These are protocol surfaces for later independently deployed connectors, not live vendor integrations. See [`docs/connector-contract.md`](./docs/connector-contract.md).
 
 `baseline:answers:live` is an explicit paid/network evaluation: it runs the eligible answer cases sequentially and persists the full report in SQLite. Use repeated `--case <id>` options with `evaluate answers` to rerun only selected cases. Use `evaluations list` and `evaluations show <run-id>` with the matching live or offline command to inspect prior runs. Expected-point coverage is a deterministic token-overlap signal; cases marked for semantic review still require human or separately controlled evaluation. A failed citation check triggers at most one additional generation request, and both attempts are included in usage and timing.
 

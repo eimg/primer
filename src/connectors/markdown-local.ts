@@ -1,6 +1,13 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 import { relative, resolve, sep, join } from "node:path";
-import type { ConnectorItem, SourceConnector } from "./contracts.js";
+import { checksum } from "../utils.js";
+import {
+  CONNECTOR_CONTRACT_VERSION,
+  type ConnectorItem,
+  type ConnectorLocator,
+  type ConnectorPage,
+  type SourceConnector,
+} from "./contracts.js";
 
 async function collectMarkdown(path: string): Promise<string[]> {
   const info = await stat(path);
@@ -24,27 +31,54 @@ function sourceReference(filePath: string, fixtureDir: string): string {
 }
 
 export class LocalMarkdownConnector implements SourceConnector {
-  readonly id = "markdown-local";
-  readonly sourceFamily = "markdown";
+  readonly descriptor = {
+    contractVersion: CONNECTOR_CONTRACT_VERSION,
+    connectorId: "markdown-local",
+    sourceFamily: "markdown",
+    transport: "local",
+    artifactKinds: ["document"],
+    capabilities: { pagination: false, incrementalSync: false, tombstones: false, health: false },
+  } as const;
 
   constructor(private readonly fixtureDir: string) {}
 
-  supports(path: string): boolean {
-    const normalized = resolve(path).split(sep).join("/");
-    return path.endsWith(".md") || normalized.includes("/sources/markdown");
+  supports(locator: ConnectorLocator): boolean {
+    if (locator.type !== "local-path") return false;
+    if (!locator.value) return true;
+    const normalized = resolve(locator.value).split(sep).join("/");
+    return locator.value.endsWith(".md") || normalized.includes("/sources/markdown");
+  }
+
+  async pull(request: { locator: ConnectorLocator }): Promise<ConnectorPage> {
+    const root = resolve(request.locator.value || join(this.fixtureDir, "sources", "markdown"));
+    const files = await collectMarkdown(root);
+    const items: ConnectorItem[] = await Promise.all(files.map(async (file) => {
+      const rawContent = await readFile(file, "utf8");
+      const sourceRef = sourceReference(file, this.fixtureDir);
+      return {
+        schemaVersion: CONNECTOR_CONTRACT_VERSION,
+        connectorId: this.descriptor.connectorId,
+        sourceFamily: this.descriptor.sourceFamily,
+        artifactKind: "document",
+        externalId: sourceRef,
+        revision: checksum(rawContent),
+        sourceRef,
+        rawContent,
+        metadata: { localPath: resolve(file) },
+      };
+    }));
+    return {
+      schemaVersion: CONNECTOR_CONTRACT_VERSION,
+      connectorId: this.descriptor.connectorId,
+      sourceFamily: this.descriptor.sourceFamily,
+      mode: "snapshot",
+      items,
+      tombstones: [],
+      checkpointCursor: checksum(items.map((item) => `${item.externalId}:${item.revision}`).join("\n")),
+    };
   }
 
   async read(path?: string): Promise<ConnectorItem[]> {
-    const root = resolve(path ?? join(this.fixtureDir, "sources", "markdown"));
-    const files = await collectMarkdown(root);
-    return Promise.all(
-      files.map(async (file) => ({
-        connectorId: this.id,
-        sourceFamily: this.sourceFamily,
-        sourceRef: sourceReference(file, this.fixtureDir),
-        rawContent: await readFile(file, "utf8"),
-        metadata: { localPath: resolve(file) },
-      })),
-    );
+    return (await this.pull({ locator: { type: "local-path", value: path ?? "" } })).items;
   }
 }

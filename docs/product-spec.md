@@ -1,6 +1,6 @@
 # Primer MVP product specification
 
-**Status:** Active product contract. The complete CLI and core web milestones are implemented: retrieval, policy, authorization, context packs, grounded answers, persisted evaluation, registered-source synchronization/removal, versioned traces, a working HTTP API, local accounts/sessions, React content operations, streamed chat, evidence navigation, retrieval inspection, and evaluation reporting are verified.
+**Status:** Active product contract. The complete CLI, core web, and external-connector readiness milestones are implemented: retrieval, policy, authorization, context packs, grounded answers, persisted evaluation, registered-source synchronization/removal, versioned traces, a working HTTP API, local accounts/sessions, React content operations, streamed chat, evidence navigation, retrieval inspection, evaluation reporting, and `primer.connector.v1` conformance are verified. Live vendor connectors are intentionally not implemented.
 
 ## Objective
 
@@ -102,6 +102,9 @@ The web operator can manage local accounts, group/project membership, active ses
 ### Source processing
 
 - A connector emits a common acquisition envelope containing connector identity, source family, native reference, raw content, and connector metadata.
+- The acquisition envelope is versioned as `primer.connector.v1` and preserves semantic artifact kind, stable external identity, revision, and optional canonical metadata without exposing vendor SDK types.
+- Registered providers use typed opaque locators and configuration; HTTP providers support page cursors, committed checkpoints, incremental delivery, health, and deletion tombstones.
+- Semantic HTTP processing distinguishes documents, conversations, business records, and events rather than implementing vendor-specific processors inside Primer.
 - A registered source-family processor converts acquisition items into canonical source objects with stable identity, provenance, timestamps, metadata, access rules, records, and visible decisions.
 - Connectors do not embed, rank, or write retrieval storage directly.
 - Processing is selected by source type.

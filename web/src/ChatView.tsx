@@ -4,7 +4,6 @@ import { api, type Evidence, type GroundedAnswer, type Project } from "./api";
 interface ChatMessage {
   id: string;
   question: string;
-  partial: string;
   status: string;
   result?: GroundedAnswer;
   error?: string;
@@ -42,7 +41,7 @@ export function ChatView({ projects }: { projects: Project[] }) {
     const trimmed = nextQuestion.trim();
     if (!trimmed || sending) return;
     const id = `message-${Date.now()}`;
-    setMessages((current) => [...current, { id, question: trimmed, partial: "", status: "Starting grounded search" }]);
+    setMessages((current) => [...current, { id, question: trimmed, status: "Starting grounded search" }]);
     setQuestion("");
     setSending(true);
     setSelectedEvidence(undefined);
@@ -51,10 +50,9 @@ export function ChatView({ projects }: { projects: Project[] }) {
         { question: trimmed, ...(nextProjectId ? { projectId: nextProjectId } : {}), limit: 5 },
         {
           onStatus: (status) => setMessages((current) => current.map((message) => message.id === id ? { ...message, status } : message)),
-          onDelta: (text) => setMessages((current) => current.map((message) => message.id === id ? { ...message, partial: message.partial + text } : message)),
         },
       );
-      setMessages((current) => current.map((message) => message.id === id ? { ...message, result, partial: result.answer, status: "Grounded answer ready" } : message));
+      setMessages((current) => current.map((message) => message.id === id ? { ...message, result, status: "Grounded answer ready" } : message));
       setSelectedEvidence(result.evidence[0]);
     } catch (cause) {
       setMessages((current) => current.map((message) => message.id === id ? { ...message, error: cause instanceof Error ? cause.message : String(cause), status: "Answer failed" } : message));
@@ -81,7 +79,10 @@ export function ChatView({ projects }: { projects: Project[] }) {
           <div className="user-message"><span>You</span><p>{message.question}</p></div>
           <div className="assistant-message">
             <div className="assistant-label"><span className="mini-mark">P</span><strong>Primer</strong>{!message.result && !message.error && <em>{message.status}</em>}</div>
-            {message.error ? <p className="inline-error">{message.error}</p> : <div className="answer-copy" aria-live="polite"><AnswerText text={message.result?.answer ?? message.partial} onEvidence={(id) => message.result && openEvidence(message.result, id)} />{!message.result && <span className="stream-caret" />}</div>}
+            {message.error ? <p className="inline-error">{message.error}</p> : <div className="answer-copy" aria-live="polite">{message.result
+              ? <AnswerText text={message.result.answer} onEvidence={(id) => openEvidence(message.result!, id)} />
+              : <span className="working-indicator"><span>Primer is working</span><span aria-hidden="true">…</span><span className="sr-only">. {message.status}</span></span>}
+            </div>}
             {message.result && <>
               <div className="answer-meta"><span className={message.result.citationValidation.valid ? "valid" : "review"}>{message.result.citationValidation.valid ? "Citations valid" : "Review citations"}</span><span>{message.result.evidence.length} evidence records</span><span>{message.result.timingMs.total.toFixed(1)} ms</span><span>{message.result.model}</span></div>
               {message.result.conflicts.length > 0 && <div className="conflict-box"><strong>Conflicting evidence</strong>{message.result.conflicts.map((conflict) => <p key={conflict.text}>{conflict.text} <span>{conflict.evidenceIds.join(", ")}</span></p>)}</div>}
@@ -92,8 +93,8 @@ export function ChatView({ projects }: { projects: Project[] }) {
         </article>)}
 
         <form className="composer" onSubmit={(event) => { event.preventDefault(); void ask(); }}>
-          <label><span className="sr-only">Project scope</span><select aria-label="Project scope" value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">All projects</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
-          <label className="question-field"><span className="sr-only">Ask Primer</span><textarea aria-label="Ask Primer" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void ask(); } }} placeholder="Ask a question about Acme knowledge…" rows={2} /></label>
+          <label className="project-scope"><span className="sr-only">Project scope</span><select aria-label="Project scope" value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">All projects</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
+          <label className="question-field"><span className="sr-only">Ask Primer</span><textarea aria-label="Ask Primer" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void ask(); } }} placeholder="Ask a question about Acme knowledge…" rows={1} /></label>
           <button className="send-button" disabled={sending || !question.trim()} aria-label="Send question">↑</button>
         </form>
       </section>

@@ -1,10 +1,10 @@
 # Primer delivery plan
 
-**Status:** Phase 7 is next. Phases 1 through 6 are complete: the CLI pipeline, local HTTP API, account/content operations, streamed grounded chat, citation/evidence navigation, account-scoped retrieval inspection, and persisted evaluation reporting are implemented. The `acme-v0.1` full baseline and targeted follow-up runs validated citation, abstention, repair, permission, and expected-point behavior; `acme-v0.3` is the active verified fixture.
+**Status:** Phase 7 core hardening and internal-test readiness is next. Phases 1 through 6 and the external-connector readiness gate are complete: the CLI pipeline, local HTTP API, account/content operations, streamed grounded chat, citation/evidence navigation, account-scoped retrieval inspection, persisted evaluation reporting, and `primer.connector.v1` are implemented. The product still uses only local fixture data. The `acme-v0.1` full baseline and targeted follow-up runs validated citation, abstention, repair, permission, and expected-point behavior; `acme-v0.3` is the active verified fixture.
 
 The plan uses decision gates rather than calendar estimates. Each phase should leave behind inspectable artifacts and evidence, not only code.
 
-## Current phase: Phase 7 ecosystem integrations
+## Current phase: Phase 7 core hardening and internal-test readiness
 
 ### Completed
 
@@ -145,13 +145,32 @@ Exit evidence:
 - visual and end-to-end tests cover the representative product journeys.
 - if the optional Pi simulation is later implemented, it is revision-pinned, read-only, bounded, and cannot mutate the Primer index.
 
-## Phase 7: ecosystem integrations
+## External connector readiness gate
 
-This phase begins only through a separate decision and after the CLI and web gates pass.
+**Status:** Complete. `primer.connector.v1` defines one acquisition protocol for local and independently deployed HTTP providers. Registrations persist typed locators, connector configuration, and committed checkpoints. The provider workflow validates pagination, stable external identity, semantic artifact kinds, snapshots, incremental updates, health, and tombstones. Storage schema v5 maps external identity to canonical Primer sources. Four vendor-neutral HTTP providers accept canonical documents, conversations, business records, and events; the content UI remains local-only.
+
+The conformance surface uses synthetic local content through a simulated HTTP provider. It proves paginated backfill, unchanged idempotency, ACL-only replacement, interruption without checkpoint advancement, external-ID tombstones, duplicate rejection, and incompatible-schema rejection. No vendor SDK, OAuth flow, or live organizational source is introduced.
+
+## Phase 7: core hardening and internal-test readiness
+
+Solidify the current local product before using real internal content or building independently deployed connectors. Priorities are synchronization atomicity and recovery, schema migration and rebuild verification, authorization/security regression coverage, API contract and malformed-input tests, evaluation regression thresholds, operational backup/reset guidance, structured diagnostics, and repeatable browser journeys over the local corpus.
+
+Exit evidence:
+
+- a failed sync cannot leave a partially advanced checkpoint or incorrect deletion state;
+- schema migration, clean rebuild, backup, and recovery paths are exercised;
+- permission and session-boundary suites remain release blockers;
+- deterministic retrieval and answer baselines have explicit regression thresholds;
+- API, CLI, and browser journeys are repeatable from clean local state; and
+- the team can run a bounded internal-test rehearsal using synthetic or approved local data without deploying a live connector.
+
+## Phase 8: independently deployed ecosystem integrations
+
+This phase begins only through a separate decision after the hardening and internal-test gate passes. Each source connector is developed, deployed, credentialed, and tested outside the Primer repository against `primer.connector.v1`.
 
 Candidate order:
 
-1. Add a read-only Acme Issues source adapter for issues, comments, labels, state history, and Helix run lineage.
+1. Build a read-only Acme Issues connector outside Primer for issues, comments, labels, state history, and Helix run lineage.
 2. Expose a bounded evidence-query HTTP contract equivalent to the stable CLI JSON result.
 3. Add a Helix adapter that supplies actor/project-scoped Primer evidence to planning or specialist context.
 4. Evaluate MCP only if more independent consumers or a concrete deployment, credential, policy, isolation, or ownership boundary emerges.
