@@ -130,4 +130,6 @@ The CLI is the first evaluation surface. The later web application reads persist
 - The CLI milestone cannot pass without stable JSON contract tests and an end-to-end offline evaluation run.
 - The web milestone cannot pass if its displayed evidence, metrics, or trace differs from the underlying application-service result.
 
-Numeric retrieval thresholds should be derived from recorded live baselines for the same fixture version. Choosing thresholds across incompatible fixture expectations would create false precision. Permission leakage, missing citation identity, and deterministic contract failures retain zero-tolerance gates.
+The Phase 7 `primer.readiness.v1` gate freezes conservative regression floors for `acme-v0.3`: 95% mean union recall, 90% mean evidence recall, and 60% mean answer-point screening coverage. These floors are regression alarms, not semantic-quality claims. Permission leakage, invalid citation identity, incorrect full abstention, failed deterministic behavior, database corruption, and incomplete managed synchronization retain zero tolerance. Live semantic-review warnings require human review under [`manual-live-testing.md`](./manual-live-testing.md).
+
+Thresholds must not be compared across incompatible fixture expectations or silently changed to make a run pass. A later threshold revision requires a recorded decision and preserved baseline evidence.

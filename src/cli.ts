@@ -4,7 +4,7 @@ import { loadConfig, type PrimerConfig } from "./config.js";
 import { createEmbeddingProvider, DeterministicEmbeddingProvider } from "./embeddings.js";
 import { createAnswerProvider } from "./answers.js";
 import { validateFixture } from "./fixture.js";
-import { PrimerServices, type AnswerEvaluationResult, type EvaluationResult } from "./services.js";
+import { PrimerServices, type AnswerEvaluationResult, type EvaluationResult, type PrimerDiagnostics, type ReadinessReport } from "./services.js";
 import type { GroundedAnswer, OrchestratorContextPack, RetrievalTrace, SyncRun, ValidationReport } from "./types.js";
 
 const HELP = `Primer — inspect organizational sources as authorized evidence
@@ -13,6 +13,9 @@ Usage:
   primer init [--fixture <path>] [--data-dir <path>] [--json]
   primer validate [--fixture <path>] [--json]
   primer config show [--json]
+  primer diagnostics [--json]
+  primer readiness check [--include-answers] [--json]
+  primer data backup <destination> [--json]
   primer users list|show <user-id> [--json]
   primer sources connectors [--json]
   primer sources register <path> --connector <connector-id> [--json]
@@ -57,12 +60,13 @@ interface ParsedArgs {
   projectId?: string;
   limit?: number;
   connectorId?: string;
+  includeAnswers: boolean;
   caseIds: string[];
 }
 
 function parseArguments(args: string[]): ParsedArgs {
   const positionals: string[] = [];
-  const parsed: ParsedArgs = { positionals, json: false, caseIds: [] };
+  const parsed: ParsedArgs = { positionals, json: false, includeAnswers: false, caseIds: [] };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === "--json") parsed.json = true;
@@ -71,6 +75,7 @@ function parseArguments(args: string[]): ParsedArgs {
     else if (arg === "--user") parsed.userId = requiredValue(args, ++index, arg);
     else if (arg === "--project") parsed.projectId = requiredValue(args, ++index, arg);
     else if (arg === "--connector") parsed.connectorId = requiredValue(args, ++index, arg);
+    else if (arg === "--include-answers") parsed.includeAnswers = true;
     else if (arg === "--case") parsed.caseIds.push(requiredValue(args, ++index, arg));
     else if (arg === "--limit") {
       const value = Number(requiredValue(args, ++index, arg));
@@ -228,6 +233,25 @@ function evaluationText(result: EvaluationResult): string {
   ].join("\n");
 }
 
+function diagnosticsText(result: PrimerDiagnostics): string {
+  return [
+    `Primer ${result.applicationVersion} diagnostics`,
+    `Fixture: ${result.fixture.id ?? "unknown"} · ${result.fixture.valid ? "valid" : "invalid"}`,
+    `Database: integrity ${result.database.integrity} · schema ${result.database.schemaVersion}/${result.storageSchemaVersion} · foreign-key violations ${result.database.foreignKeyViolations}`,
+    `Content: ${result.database.counts.sources ?? 0} sources · ${result.database.counts.records ?? 0} records`,
+    `Registrations: ${result.registrations.completed}/${result.registrations.total} completed · ${result.registrations.failed} failed · ${result.registrations.interrupted} interrupted`,
+    `Embedding: ${result.providers.embedding.provider}/${result.providers.embedding.model} · ${result.providers.embedding.configured ? "configured" : "missing configuration"}`,
+    `Chat: ${result.providers.chat.provider}/${result.providers.chat.model ?? "not configured"} · ${result.providers.chat.configured ? "configured" : "missing configuration"}`,
+  ].join("\n");
+}
+
+function readinessText(result: ReadinessReport): string {
+  return [
+    `Primer readiness: ${result.ready ? "PASS" : "FAIL"} (${result.mode})`,
+    ...result.checks.map((check) => `  ${check.status.toUpperCase()} ${check.id}: ${check.message}`),
+  ].join("\n");
+}
+
 async function withServices<T>(
   config: PrimerConfig,
   needsEmbeddings: boolean,
@@ -284,6 +308,35 @@ async function main(): Promise<void> {
       `Fixture: ${result.fixtureDir}`,
       ...result.connectors.map((connector) => `Connector: ${connector.connectorId} · ${connector.processorVersion}`),
     ].join("\n"));
+    return;
+  }
+
+  if (command === "diagnostics") {
+    const result = await withServices(config, false, (services) => services.diagnostics());
+    print(result, args.json, () => diagnosticsText(result));
+    if (!result.fixture.valid || result.database.integrity !== "ok" || result.database.foreignKeyViolations > 0) {
+      process.exitCode = 1;
+    }
+    return;
+  }
+
+  if (command === "readiness" && subcommand === "check") {
+    const result = await withServices(
+      config,
+      true,
+      (services) => services.readiness({ includeAnswers: args.includeAnswers }),
+      args.includeAnswers,
+    );
+    print(result, args.json, () => readinessText(result));
+    if (!result.ready) process.exitCode = 1;
+    return;
+  }
+
+  if (command === "data" && subcommand === "backup") {
+    const destination = rest[0];
+    if (!destination) throw new Error("data backup requires a destination path");
+    const result = await withServices(config, false, (services) => services.backup(destination));
+    print(result, args.json, () => `Backed up ${result.bytes} bytes (${result.pages} pages) to ${result.destination}`);
     return;
   }
 
@@ -582,7 +635,7 @@ function errorCategory(args: string[], message: string): ErrorCategory {
   if (/OPENROUTER_API_KEY|PRIMER_(?:EMBEDDING|CHAT)_MODEL|Unknown option|requires a value/.test(message)) {
     return "configuration";
   }
-  if (command === "evaluate" || command === "evaluations") return "evaluation";
+  if (command === "evaluate" || command === "evaluations" || command === "readiness") return "evaluation";
   if (command === "sources" || command === "syncs") return "source-processing";
   if (command === "retrieve" || command === "context" || command === "ask") return "provider";
   return "internal";

@@ -4,7 +4,7 @@ Primer is an inspectable knowledge system for turning organizational sources int
 
 Primer turns source material into authorized, ranked evidence and uses that evidence to produce cited answers. Its primary product is not a chat box. It is a trustworthy answer system with transparent decisions between ingestion and generation.
 
-Primer has completed its CLI and core web milestones. A working HTTP API and React interface reuse the same SQLite, retrieval, authorization, answer, trace, synchronization, and evaluation services as the CLI. The web application supports local identity/session selection, effective-group management, content operations, streamed grounded chat, citation/evidence navigation, account-scoped retrieval inspection, and persisted evaluation reporting. Primer also implements the versioned `primer.connector.v1` acquisition boundary while continuing to use only local fixture data. Primer supplies organizational context; source-code exploration is delegated to Helix's Pi harness in real workflows.
+Primer has completed Phases 1 through 7 and is paused for manual live testing. A working HTTP API and React interface reuse the same SQLite, retrieval, authorization, answer, trace, synchronization, and evaluation services as the CLI. Phase 7 adds atomic managed synchronization, structured diagnostics, restorable backups, frozen regression gates, and a live-testing runbook. Primer also implements the versioned `primer.connector.v1` acquisition boundary while continuing to use only local fixture data. Primer supplies organizational context; source-code exploration is delegated to Helix's Pi harness in real workflows.
 
 ## Web application
 
@@ -17,6 +17,7 @@ Primer has completed its CLI and core web milestones. A working HTTP API and Rea
 - [`docs/product-spec.md`](./docs/product-spec.md) — MVP behavior, scope, user journeys, and acceptance criteria.
 - [`docs/architecture.md`](./docs/architecture.md) — conceptual components, ownership boundaries, and data flow.
 - [`docs/connector-contract.md`](./docs/connector-contract.md) — implemented external connector protocol and conformance rules.
+- [`docs/manual-live-testing.md`](./docs/manual-live-testing.md) — Phase 7 readiness, live-model, browser, API, backup, and review procedure.
 - [`docs/evaluation.md`](./docs/evaluation.md) — how retrieval, citations, permissions, and updates will be judged.
 - [`docs/plan.md`](./docs/plan.md) — decision gates and staged delivery plan.
 - [`docs/decisions.md`](./docs/decisions.md) — settled decisions, resolved questions, and the process for later changes.
@@ -50,6 +51,7 @@ The CLI currently supports:
 - separate persisted retrieval and answer evaluations with expected-point coverage, permission checks, usage, and timing;
 - Markdown-plus-Slack retrieval and permission evaluation; and
 - inspectable safe configuration without credential exposure; and
+- structured diagnostics, restorable non-overwriting SQLite backup, and deterministic/live readiness commands; and
 - human-readable and stable JSON command and categorized error output.
 
 Install and verify:
@@ -101,6 +103,14 @@ npm run dev:offline -- evaluate answers
 npm run dev:offline -- evaluations list
 npm run dev:offline -- traces list
 ```
+
+For the deterministic Phase 7 release-candidate gate:
+
+```bash
+npm run readiness:offline
+```
+
+Use `npm run readiness:live:retrieval` for the explicit live embedding gate and `npm run readiness:live` for the paid full retrieval-and-answer gate. See [`docs/manual-live-testing.md`](./docs/manual-live-testing.md) before running or interpreting live results.
 
 For the live OpenRouter baseline:
 

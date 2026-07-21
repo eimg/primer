@@ -74,6 +74,17 @@ test("HTTP API runs independently and reuses account and content application ser
       ["g-all", "g-clientcore", "g-support"],
     );
 
+    const invalidLocator = await fetch(`${baseUrl}/api/sources/registrations`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: cookie! },
+      body: JSON.stringify({
+        connectorId: "document-http",
+        locator: { type: "ftp", value: "ftp://connector.invalid/pull" },
+      }),
+    });
+    assert.equal(invalidLocator.status, 400);
+    assert.equal((await invalidLocator.json() as { error: { category: string } }).error.category, "request");
+
     const registrationResponse = await fetch(`${baseUrl}/api/sources/registrations`, {
       method: "POST",
       headers: { "content-type": "application/json", cookie: cookie! },

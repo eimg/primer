@@ -1,6 +1,6 @@
 # Primer MVP product specification
 
-**Status:** Active product contract. The complete CLI, core web, and external-connector readiness milestones are implemented: retrieval, policy, authorization, context packs, grounded answers, persisted evaluation, registered-source synchronization/removal, versioned traces, a working HTTP API, local accounts/sessions, React content operations, streamed chat, evidence navigation, retrieval inspection, evaluation reporting, and `primer.connector.v1` conformance are verified. Live vendor connectors are intentionally not implemented.
+**Status:** Phase 7 product contract complete; development is paused for manual live testing. The CLI, core web, external-connector readiness, atomic synchronization, diagnostics, backup, and readiness milestones are implemented. Live vendor connectors are intentionally not implemented.
 
 ## Objective
 
@@ -110,6 +110,7 @@ The web operator can manage local accounts, group/project membership, active ses
 - Processing is selected by source type.
 - Normalization output is distinguishable from authoritative source content.
 - Chunk identity is stable enough for idempotent re-synchronization.
+- Managed synchronization commits prepared writes, removals, checkpoint advancement, and completion atomically; a failed commit retains the previous index and checkpoint.
 - Selective indexing records both accepted and rejected decisions.
 - Code blocks, tables, heading paths, conversation resolution state, and exact identifiers are preserved when relevant.
 - The MVP is index-first. A future connector may additionally expose source-native discovery, but discovered material must become authorized, normalized, attributable evidence before it can support an answer.

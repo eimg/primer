@@ -93,6 +93,47 @@ test("failed synchronization remains inspectable and is not reported as complete
   }
 });
 
+test("synchronization commits records, deletions, checkpoint, and completion atomically", async () => {
+  const context = await createTestServices();
+  const sourceRoot = join(context.directory, "atomic", "sources", "markdown");
+  mkdirSync(sourceRoot, { recursive: true });
+  const importsPath = join(sourceRoot, "imports.md");
+  const archivalPath = join(sourceRoot, "archival.md");
+  copyFileSync(join(fixtureDir, "sources", "markdown", "wiki", "clientcore", "imports.md"), importsPath);
+  copyFileSync(join(fixtureDir, "sources", "markdown", "wiki", "clientcore", "account-archival.md"), archivalPath);
+  const originalReplace = context.database.replaceSource.bind(context.database);
+
+  try {
+    const registration = context.services.registerSource({ connectorId: "markdown-local", path: sourceRoot });
+    await context.services.synchronize({ registrationId: registration.id });
+    const checkpoint = context.services.inspectSourceRegistration(registration.id).registration.checkpointCursor;
+    const before = context.database.listRecords().map(({ id, contentChecksum }) => ({ id, contentChecksum }));
+
+    writeFileSync(importsPath, readFileSync(importsPath, "utf8").replace("column is optional", "column remains optional"));
+    writeFileSync(archivalPath, readFileSync(archivalPath, "utf8").replace("not deletion", "never deletion"));
+    let writes = 0;
+    context.database.replaceSource = (...args: Parameters<PrimerDatabase["replaceSource"]>) => {
+      writes += 1;
+      if (writes === 2) throw new Error("simulated atomic write failure");
+      originalReplace(...args);
+    };
+
+    await assert.rejects(
+      context.services.synchronize({ registrationId: registration.id }),
+      /simulated atomic write failure/,
+    );
+    assert.ok(writes >= 2);
+    assert.deepEqual(context.database.listRecords().map(({ id, contentChecksum }) => ({ id, contentChecksum })), before);
+    const inspected = context.services.inspectSourceRegistration(registration.id);
+    assert.equal(inspected.registration.checkpointCursor, checkpoint);
+    assert.equal(inspected.registration.lastSyncStatus, "failed");
+    assert.equal(inspected.sourceIds.length, 2);
+  } finally {
+    context.database.replaceSource = originalReplace;
+    context.cleanup();
+  }
+});
+
 test("two registrations cannot silently claim the same stable source identity", async () => {
   const context = await createTestServices();
   const firstRoot = join(context.directory, "first", "sources", "markdown");

@@ -26,6 +26,8 @@
     "build:web": "vite build",
     "dev": "node --env-file=.env --import tsx src/cli.ts",
     "dev:offline": "PRIMER_DATA_DIR=.primer/offline PRIMER_EMBEDDING_PROVIDER=deterministic PRIMER_CHAT_PROVIDER=deterministic node --import tsx src/cli.ts",
+    "dev:readiness:offline": "PRIMER_DATA_DIR=.primer/readiness-offline PRIMER_EMBEDDING_PROVIDER=deterministic PRIMER_CHAT_PROVIDER=deterministic node --import tsx src/cli.ts",
+    "dev:readiness:live": "PRIMER_DATA_DIR=.primer/readiness-live node --env-file=.env --import tsx src/cli.ts",
     "dev:api": "node --env-file=.env --import tsx src/server.ts",
     "dev:api:offline": "PRIMER_DATA_DIR=.primer/web-offline PRIMER_EMBEDDING_PROVIDER=deterministic PRIMER_CHAT_PROVIDER=deterministic node --import tsx src/server.ts",
     "dev:web": "vite",
@@ -36,6 +38,9 @@
     "baseline:live": "npm run dev -- init && npm run dev -- sources ingest && npm run dev -- evaluate",
     "baseline:answers:offline": "npm run dev:offline -- init && npm run dev:offline -- sources ingest && npm run dev:offline -- evaluate answers",
     "baseline:answers:live": "npm run dev -- init && npm run dev -- sources ingest && npm run dev -- evaluate answers",
+    "readiness:offline": "npm run dev:readiness:offline -- init && npm run dev:readiness:offline -- sources register sample-data/acme/sources/markdown --connector markdown-local && npm run dev:readiness:offline -- sources register sample-data/acme/sources/slack --connector slack-export && npm run dev:readiness:offline -- sources sync && npm run dev:readiness:offline -- readiness check --include-answers",
+    "readiness:live:retrieval": "npm run dev:readiness:live -- init && npm run dev:readiness:live -- sources register sample-data/acme/sources/markdown --connector markdown-local && npm run dev:readiness:live -- sources register sample-data/acme/sources/slack --connector slack-export && npm run dev:readiness:live -- sources sync && npm run dev:readiness:live -- readiness check",
+    "readiness:live": "npm run dev:readiness:live -- init && npm run dev:readiness:live -- sources register sample-data/acme/sources/markdown --connector markdown-local && npm run dev:readiness:live -- sources register sample-data/acme/sources/slack --connector slack-export && npm run dev:readiness:live -- sources sync && npm run dev:readiness:live -- readiness check --include-answers",
     "test": "node --test --import tsx test/*.test.ts",
     "typecheck": "tsc --noEmit && tsc -p web/tsconfig.json",
     "verify": "npm run typecheck && npm test && npm run build && npm audit"

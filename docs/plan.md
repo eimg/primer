@@ -1,10 +1,10 @@
 # Primer delivery plan
 
-**Status:** Phase 7 core hardening and internal-test readiness is next. Phases 1 through 6 and the external-connector readiness gate are complete: the CLI pipeline, local HTTP API, account/content operations, streamed grounded chat, citation/evidence navigation, account-scoped retrieval inspection, persisted evaluation reporting, and `primer.connector.v1` are implemented. The product still uses only local fixture data. The `acme-v0.1` full baseline and targeted follow-up runs validated citation, abstention, repair, permission, and expected-point behavior; `acme-v0.3` is the active verified fixture.
+**Status:** Phase 7 is complete and development is paused for manual live testing. Phases 1 through 7 and the external-connector readiness gate are complete: the CLI pipeline, local HTTP API, account/content operations, streamed grounded chat, citation/evidence navigation, account-scoped retrieval inspection, persisted evaluation reporting, `primer.connector.v1`, atomic synchronization, diagnostics, backups, and versioned readiness gates are implemented. The product still uses only local fixture data. The `acme-v0.1` full baseline and targeted follow-up runs validated citation, abstention, repair, permission, and expected-point behavior; `acme-v0.3` is the active verified fixture.
 
 The plan uses decision gates rather than calendar estimates. Each phase should leave behind inspectable artifacts and evidence, not only code.
 
-## Current phase: Phase 7 core hardening and internal-test readiness
+## Current phase: development pause and manual live testing
 
 ### Completed
 
@@ -153,6 +153,8 @@ The conformance surface uses synthetic local content through a simulated HTTP pr
 
 ## Phase 7: core hardening and internal-test readiness
 
+**Status:** Complete. Source writes, removals, checkpoint advancement, and successful-run persistence commit atomically after acquisition and embeddings finish. Fault injection proves a second-write failure rolls back earlier writes and preserves the prior checkpoint. Diagnostics expose fixture, schema, SQLite integrity, foreign keys, provider readiness, counts, and synchronization state without credentials. Online SQLite backup is restorable and refuses overwrite. `primer.readiness.v1` enforces frozen `acme-v0.3` regression floors plus zero-tolerance trust checks. The deterministic clean-state `npm run readiness:offline` gate passes; live-model and browser acceptance now follow the manual runbook.
+
 Solidify the current local product before using real internal content or building independently deployed connectors. Priorities are synchronization atomicity and recovery, schema migration and rebuild verification, authorization/security regression coverage, API contract and malformed-input tests, evaluation regression thresholds, operational backup/reset guidance, structured diagnostics, and repeatable browser journeys over the local corpus.
 
 Exit evidence:
@@ -163,6 +165,8 @@ Exit evidence:
 - deterministic retrieval and answer baselines have explicit regression thresholds;
 - API, CLI, and browser journeys are repeatable from clean local state; and
 - the team can run a bounded internal-test rehearsal using synthetic or approved local data without deploying a live connector.
+
+Manual acceptance is intentionally not marked complete by automation. Use [`manual-live-testing.md`](./manual-live-testing.md), record the result against an exact commit and model pair, and open issues before changing code or thresholds. Phase 8 remains inactive during the pause.
 
 ## Phase 8: independently deployed ecosystem integrations
 

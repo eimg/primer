@@ -1,3 +1,4 @@
+import { existsSync, statSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import type { PrimerConfig } from "./config.js";
 import { createDefaultConnectorRegistry } from "./connectors/default.js";
@@ -148,6 +149,54 @@ export interface AnswerEvaluationResult {
     totalTokens?: number;
     totalDurationMs: number;
     meanDurationMs: number;
+  };
+  createdAt: string;
+}
+
+interface PreparedConnectorSource {
+  entry: ProcessedConnectorSource;
+  vectors?: number[][];
+  result: IngestResult;
+}
+
+export interface ReadinessCheck {
+  id: string;
+  status: "pass" | "fail" | "warn";
+  message: string;
+}
+
+export interface PrimerDiagnostics {
+  schemaVersion: "primer.diagnostics.v1";
+  applicationVersion: string;
+  storageSchemaVersion: number;
+  fixture: { id?: string; valid: boolean; errors: number; warnings: number };
+  database: ReturnType<PrimerDatabase["diagnostics"]>;
+  providers: {
+    embedding: { provider: string; model: string; configured: boolean };
+    chat: { provider: string; model?: string; configured: boolean };
+  };
+  registrations: {
+    total: number;
+    never: number;
+    completed: number;
+    failed: number;
+    interrupted: number;
+  };
+  createdAt: string;
+}
+
+export interface ReadinessReport {
+  schemaVersion: "primer.readiness.v1";
+  ready: boolean;
+  mode: "deterministic" | "live";
+  checks: ReadinessCheck[];
+  diagnostics: PrimerDiagnostics;
+  retrieval?: EvaluationResult;
+  answers?: AnswerEvaluationResult;
+  thresholds: {
+    meanUnionRecall: number;
+    meanEvidenceRecall: number;
+    meanAnswerPointCoverage: number;
   };
   createdAt: string;
 }
@@ -347,6 +396,150 @@ export class PrimerServices {
     };
   }
 
+  async diagnostics(): Promise<PrimerDiagnostics> {
+    const [fixture, database] = await Promise.all([
+      this.validate(),
+      Promise.resolve(this.database.diagnostics()),
+    ]);
+    const registrations = this.database.listSourceRegistrations();
+    const statusCount = (status: SourceRegistration["lastSyncStatus"]) =>
+      registrations.filter((registration) => registration.lastSyncStatus === status).length;
+    const embeddingConfigured = this.config.embeddingProvider === "deterministic" ||
+      Boolean(this.config.openRouterApiKey && this.config.embeddingModel);
+    const chatConfigured = this.config.chatProvider === "deterministic" ||
+      Boolean(this.config.openRouterApiKey && this.config.chatModel);
+    return {
+      schemaVersion: "primer.diagnostics.v1",
+      applicationVersion: APPLICATION_VERSION,
+      storageSchemaVersion: STORAGE_SCHEMA_VERSION,
+      fixture: {
+        ...(fixture.fixtureId ? { id: fixture.fixtureId } : {}),
+        valid: fixture.valid,
+        errors: fixture.issues.filter((issue) => issue.severity === "error").length,
+        warnings: fixture.issues.filter((issue) => issue.severity === "warning").length,
+      },
+      database,
+      providers: {
+        embedding: {
+          provider: this.config.embeddingProvider,
+          model: this.config.embeddingModel ?? this.embeddings.modelId,
+          configured: embeddingConfigured,
+        },
+        chat: {
+          provider: this.config.chatProvider,
+          ...(this.config.chatModel ? { model: this.config.chatModel } : {}),
+          configured: chatConfigured,
+        },
+      },
+      registrations: {
+        total: registrations.length,
+        never: statusCount("never"),
+        completed: statusCount("completed"),
+        failed: statusCount("failed"),
+        interrupted: statusCount("interrupted"),
+      },
+      createdAt: nowIso(),
+    };
+  }
+
+  async readiness(input: { includeAnswers?: boolean } = {}): Promise<ReadinessReport> {
+    await this.initialize();
+    const diagnostics = await this.diagnostics();
+    const mode = this.config.embeddingProvider === "deterministic" && this.config.chatProvider === "deterministic"
+      ? "deterministic"
+      : "live";
+    const thresholds = {
+      meanUnionRecall: 0.95,
+      meanEvidenceRecall: 0.9,
+      meanAnswerPointCoverage: 0.6,
+    };
+    const checks: ReadinessCheck[] = [];
+    const check = (id: string, passed: boolean, message: string): void => {
+      checks.push({ id, status: passed ? "pass" : "fail", message });
+    };
+    check("fixture", diagnostics.fixture.valid, diagnostics.fixture.valid
+      ? `Fixture ${diagnostics.fixture.id ?? "unknown"} is valid.`
+      : `Fixture has ${diagnostics.fixture.errors} errors.`);
+    check("database-integrity", diagnostics.database.integrity === "ok" && diagnostics.database.foreignKeyViolations === 0,
+      `SQLite integrity=${diagnostics.database.integrity}; foreign-key violations=${diagnostics.database.foreignKeyViolations}.`);
+    check("storage-schema", diagnostics.database.schemaVersion === STORAGE_SCHEMA_VERSION,
+      `Database schema ${diagnostics.database.schemaVersion}; application expects ${STORAGE_SCHEMA_VERSION}.`);
+    check("provider-configuration", diagnostics.providers.embedding.configured && (!input.includeAnswers || diagnostics.providers.chat.configured),
+      `Embedding provider configured=${diagnostics.providers.embedding.configured}; chat provider configured=${diagnostics.providers.chat.configured}.`);
+    check("indexed-content", (diagnostics.database.counts.sources ?? 0) > 0 && (diagnostics.database.counts.records ?? 0) > 0,
+      `${diagnostics.database.counts.sources ?? 0} sources and ${diagnostics.database.counts.records ?? 0} records are indexed.`);
+    check("managed-synchronization", diagnostics.registrations.total > 0 && diagnostics.registrations.completed === diagnostics.registrations.total,
+      `${diagnostics.registrations.completed}/${diagnostics.registrations.total} registrations completed; ${diagnostics.registrations.failed} failed; ${diagnostics.registrations.interrupted} interrupted.`);
+
+    let retrieval: EvaluationResult | undefined;
+    try {
+      retrieval = await this.evaluate();
+      check("retrieval-union-recall", retrieval.aggregate.meanUnionRecall >= thresholds.meanUnionRecall,
+        `Mean union recall ${(retrieval.aggregate.meanUnionRecall * 100).toFixed(1)}%; threshold ${(thresholds.meanUnionRecall * 100).toFixed(1)}%.`);
+      check("retrieval-evidence-recall", retrieval.aggregate.meanEvidenceRecall >= thresholds.meanEvidenceRecall,
+        `Mean evidence recall ${(retrieval.aggregate.meanEvidenceRecall * 100).toFixed(1)}%; threshold ${(thresholds.meanEvidenceRecall * 100).toFixed(1)}%.`);
+      check("retrieval-permissions", retrieval.aggregate.permissionCases === retrieval.aggregate.permissionSafeCases,
+        `${retrieval.aggregate.permissionSafeCases}/${retrieval.aggregate.permissionCases} permission cases are safe.`);
+    } catch (cause) {
+      checks.push({ id: "retrieval-evaluation", status: "fail", message: cause instanceof Error ? cause.message : String(cause) });
+    }
+
+    let answers: AnswerEvaluationResult | undefined;
+    if (input.includeAnswers) {
+      try {
+        answers = await this.evaluateAnswers();
+        check("answer-citations", answers.aggregate.citationValidCases === answers.aggregate.cases,
+          `${answers.aggregate.citationValidCases}/${answers.aggregate.cases} answers have valid citations.`);
+        check("answer-permissions", answers.aggregate.permissionSafeCases === answers.aggregate.cases,
+          `${answers.aggregate.permissionSafeCases}/${answers.aggregate.cases} answers are permission-safe.`);
+        check("answer-abstention", answers.aggregate.correctFullAbstentionCases === answers.aggregate.expectedFullAbstentionCases,
+          `${answers.aggregate.correctFullAbstentionCases}/${answers.aggregate.expectedFullAbstentionCases} full-abstention cases are correct.`);
+        check("answer-behavior", answers.cases.every((item) => item.behaviorPassed),
+          `${answers.cases.filter((item) => item.behaviorPassed).length}/${answers.aggregate.cases} answer behaviors pass.`);
+        check("answer-point-coverage", answers.aggregate.meanAnswerPointCoverage >= thresholds.meanAnswerPointCoverage,
+          `Mean answer-point coverage ${(answers.aggregate.meanAnswerPointCoverage * 100).toFixed(1)}%; threshold ${(thresholds.meanAnswerPointCoverage * 100).toFixed(1)}%.`);
+        if (answers.aggregate.semanticReviewCases > 0) {
+          checks.push({
+            id: "semantic-review",
+            status: "warn",
+            message: `${answers.aggregate.semanticReviewCases} answer cases still require human semantic review.`,
+          });
+        }
+      } catch (cause) {
+        checks.push({ id: "answer-evaluation", status: "fail", message: cause instanceof Error ? cause.message : String(cause) });
+      }
+    } else {
+      checks.push({ id: "answer-evaluation", status: "warn", message: "Answer evaluation was not requested." });
+    }
+
+    return {
+      schemaVersion: "primer.readiness.v1",
+      ready: checks.every((item) => item.status !== "fail"),
+      mode,
+      checks,
+      diagnostics,
+      ...(retrieval ? { retrieval } : {}),
+      ...(answers ? { answers } : {}),
+      thresholds,
+      createdAt: nowIso(),
+    };
+  }
+
+  async backup(destination: string) {
+    const target = resolve(destination);
+    if (target === this.config.databasePath) throw new Error("Backup destination must differ from the active database.");
+    if (existsSync(target)) throw new Error(`Backup destination already exists: ${target}`);
+    const result = await this.database.backup(target);
+    return {
+      schemaVersion: "primer.backup.v1" as const,
+      source: this.config.databasePath,
+      destination: result.destination,
+      pages: result.pages,
+      bytes: statSync(target).size,
+      createdAt: nowIso(),
+    };
+  }
+
   registerSource(input: {
     connectorId: string;
     path?: string;
@@ -402,13 +595,14 @@ export class PrimerServices {
     );
   }
 
-  private async indexProcessedSources(
+  private async prepareProcessedSources(
     sources: ProcessedConnectorSource[],
     registrationId?: string,
-    timing?: Pick<SyncTiming, "embedding" | "indexWrite">,
-  ): Promise<IngestResult[]> {
-    const results: IngestResult[] = [];
-    for (const { connectorId, externalId, processorVersion, processed } of sources) {
+    timing?: Pick<SyncTiming, "embedding">,
+  ): Promise<PreparedConnectorSource[]> {
+    const prepared: PreparedConnectorSource[] = [];
+    for (const entry of sources) {
+      const { processorVersion, processed } = entry;
       const previous = this.database.getSourceVersion(processed.source.sourceId);
       if (registrationId && previous?.registrationId && previous.registrationId !== registrationId) {
         throw new Error(
@@ -425,16 +619,7 @@ export class PrimerServices {
         previous.processorVersion === processorVersion &&
         previous.embeddingModel === this.embeddings.modelId
       ) {
-        if (registrationId) this.database.assignSourceRegistration(processed.source.sourceId, registrationId, externalId);
-        results.push({
-          connectorId,
-          sourceFamily: processed.source.source,
-          sourceId: processed.source.sourceId,
-          status: "unchanged",
-          accepted: processed.records.length,
-          rejected: processed.decisions.filter((decision) => decision.decision === "rejected").length,
-          recordIds: processed.records.map((record) => record.id),
-        });
+        prepared.push({ entry, result: this.ingestResult(entry, "unchanged") });
         continue;
       }
       const embeddingStart = process.hrtime.bigint();
@@ -442,25 +627,48 @@ export class PrimerServices {
         processed.records.map((record) => `${record.title}\n${record.content}`),
       );
       if (timing) timing.embedding += elapsedMs(embeddingStart);
-      const writeStart = process.hrtime.bigint();
-      this.database.replaceSource(processed, vectors, this.embeddings.modelId, processorVersion, registrationId, externalId);
-      if (timing) timing.indexWrite += elapsedMs(writeStart);
-      results.push({
-        connectorId,
-        sourceFamily: processed.source.source,
-        sourceId: processed.source.sourceId,
-        status: previous ? "replaced" : "indexed",
-        accepted: processed.records.length,
-        rejected: processed.decisions.filter((decision) => decision.decision === "rejected").length,
-        recordIds: processed.records.map((record) => record.id),
-      });
+      prepared.push({ entry, vectors, result: this.ingestResult(entry, previous ? "replaced" : "indexed") });
     }
-    return results;
+    return prepared;
+  }
+
+  private ingestResult(entry: ProcessedConnectorSource, status: IngestResult["status"]): IngestResult {
+    const { connectorId, processed } = entry;
+    return {
+      connectorId,
+      sourceFamily: processed.source.source,
+      sourceId: processed.source.sourceId,
+      status,
+      accepted: processed.records.length,
+      rejected: processed.decisions.filter((decision) => decision.decision === "rejected").length,
+      recordIds: processed.records.map((record) => record.id),
+    };
+  }
+
+  private applyPreparedSources(prepared: PreparedConnectorSource[], registrationId?: string): IngestResult[] {
+    for (const { entry, vectors, result } of prepared) {
+      const { externalId, processorVersion, processed } = entry;
+      if (result.status === "unchanged") {
+        if (registrationId) this.database.assignSourceRegistration(processed.source.sourceId, registrationId, externalId);
+        continue;
+      }
+      if (!vectors) throw new Error(`Prepared source ${processed.source.sourceId} is missing embeddings.`);
+      this.database.replaceSource(
+        processed,
+        vectors,
+        this.embeddings.modelId,
+        processorVersion,
+        registrationId,
+        externalId,
+      );
+    }
+    return prepared.map(({ result }) => result);
   }
 
   async ingest(input: { path?: string; connectorId?: string } = {}): Promise<IngestResult[]> {
     const sources = await this.connectors.process(input);
-    return this.indexProcessedSources(sources);
+    const prepared = await this.prepareProcessedSources(sources);
+    return this.database.atomic(() => this.applyPreparedSources(prepared));
   }
 
   async synchronize(input: { registrationId?: string } = {}): Promise<SyncRun[]> {
@@ -519,23 +727,29 @@ export class PrimerServices {
       });
       timingMs.acquisitionAndProcessing = elapsedMs(processStart);
       const previousSourceIds = this.database.listSourceIdsForRegistration(registration.id);
-      const results = await this.indexProcessedSources(acquisition.processed, registration.id, timingMs);
+      const prepared = await this.prepareProcessedSources(acquisition.processed, registration.id, timingMs);
+      const results = prepared.map(({ result }) => result);
       const observed = new Set(results.map((result) => result.sourceId));
       const removedSourceIds = acquisition.mode === "snapshot"
-        ? previousSourceIds.filter((sourceId) => !observed.has(sourceId))
-        : [...new Set(acquisition.tombstones.flatMap((tombstone) => {
-            const mapped = this.database.sourceIdForExternalId(registration.id, tombstone.externalId);
-            if (mapped) return [mapped];
+          ? previousSourceIds.filter((sourceId) => !observed.has(sourceId))
+          : [...new Set(acquisition.tombstones.flatMap((tombstone) => {
+            const mapped = this.database.sourceIdsForExternalId(registration.id, tombstone.externalId);
+            if (mapped.length > 0) return mapped;
             if (tombstone.sourceId && previousSourceIds.includes(tombstone.sourceId)) return [tombstone.sourceId];
             return [];
           }))];
-      const cleanupStart = process.hrtime.bigint();
-      for (const sourceId of removedSourceIds) this.database.removeSource(sourceId);
-      this.database.saveRegistrationCheckpoint(registration.id, acquisition.checkpointCursor);
-      timingMs.cleanup = elapsedMs(cleanupStart);
-      timingMs.total = elapsedMs(totalStart);
-      run = { ...run, status: "completed", results, removedSourceIds, timingMs, completedAt: nowIso() };
-      this.database.saveSyncRun(run);
+      this.database.atomic(() => {
+        const writeStart = process.hrtime.bigint();
+        this.applyPreparedSources(prepared, registration.id);
+        timingMs.indexWrite = elapsedMs(writeStart);
+        const cleanupStart = process.hrtime.bigint();
+        for (const sourceId of removedSourceIds) this.database.removeSource(sourceId);
+        this.database.saveRegistrationCheckpoint(registration.id, acquisition.checkpointCursor);
+        timingMs.cleanup = elapsedMs(cleanupStart);
+        timingMs.total = elapsedMs(totalStart);
+        run = { ...run, status: "completed", results, removedSourceIds, timingMs, completedAt: nowIso() };
+        this.database.saveSyncRun(run);
+      });
       return run;
     } catch (cause) {
       timingMs.total = elapsedMs(totalStart);

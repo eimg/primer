@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -76,6 +76,19 @@ test("CLI JSON contracts cover init, ingest, and retrieval", () => {
     const ingested = runCli(dataDir, ["sources", "ingest", "--json"]);
     assert.equal(ingested.status, 0, ingested.stderr);
     assert.equal((JSON.parse(ingested.stdout) as { schemaVersion: string }).schemaVersion, "primer.ingest.v1");
+
+    const diagnostics = runCli(dataDir, ["diagnostics", "--json"]);
+    assert.equal(diagnostics.status, 0, diagnostics.stderr);
+    assert.equal((JSON.parse(diagnostics.stdout) as { database: { integrity: string } }).database.integrity, "ok");
+
+    const readiness = runCli(dataDir, ["readiness", "check", "--json"]);
+    assert.equal(readiness.status, 0, readiness.stderr);
+    assert.equal((JSON.parse(readiness.stdout) as { ready: boolean }).ready, true);
+
+    const backupPath = join(dataDir, "backups", "primer.db");
+    const backup = runCli(dataDir, ["data", "backup", backupPath, "--json"]);
+    assert.equal(backup.status, 0, backup.stderr);
+    assert.equal(existsSync(backupPath), true);
 
     const retrieved = runCli(dataDir, [
       "retrieve",

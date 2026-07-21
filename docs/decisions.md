@@ -168,6 +168,18 @@ The contract carries stable external identity and revision, provenance, raw cont
 
 **Consequence:** No live vendor connector is required to finish or harden Primer, and no vendor SDK enters this repository. The existing local connectors require no rewrite and prove the same provider boundary in process. A simulated HTTP conformance surface verifies pagination, idempotency, ACL-only changes, deletion, duplicate delivery, schema mismatch, failure recovery, and checkpoint safety before independently developed connectors are accepted. MCP remains optional for a later source-native exploration capability and is not the ordinary synchronization transport.
 
+### D-027 — Commit managed synchronization outcomes atomically
+
+**Decision:** Complete connector acquisition, processing, and required embeddings before mutating the derived index. Then commit all source replacements or assignments, explicit or snapshot deletions, registration checkpoint advancement, and the successful synchronization record in one SQLite transaction. If any commit operation fails, roll back the whole outcome and persist a separate failed run against the unchanged prior checkpoint.
+
+**Consequence:** A failed synchronization cannot expose a partially updated index, incorrectly remove sources, or advance the connector checkpoint. Embedding calls are not held inside a database transaction. Restart recovery continues to mark a process-owned running record as interrupted when its process no longer exists.
+
+### D-028 — End Phase 7 with reproducible readiness gates and a development pause
+
+**Decision:** Close the current development sequence after Phase 7 and pause for manual live testing. Add credential-safe diagnostics, restorable non-overwriting SQLite backup, a versioned `primer.readiness.v1` report, deterministic and explicit live npm workflows, frozen `acme-v0.3` regression floors, and a manual browser/API/model review runbook. Automated readiness has zero tolerance for permission leakage, invalid citation identity, incorrect full abstention, failed deterministic behavior, corrupt storage, foreign-key violations, or incomplete managed synchronization. Quality floors are regression alarms and do not replace semantic review.
+
+**Consequence:** Passing automation makes the build eligible for manual testing; it does not start Phase 8. Live model runs remain explicit paid/network actions, semantic-review warnings require human judgment, and any defect discovered during the pause should be recorded before prompts, thresholds, permissions, or fixture expectations change. Real connectors remain externally developed and deferred.
+
 ## Resolved product questions
 
 ### Q-002 — Who is the primary user? — Resolved by D-012 and D-018

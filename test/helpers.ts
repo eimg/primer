@@ -20,6 +20,7 @@ export async function createTestServices(answerProvider?: AnswerProvider): Promi
     dataDir: directory,
     fixtureDir,
     embeddingProvider: "deterministic",
+    chatProvider: "deterministic",
   });
   const database = new PrimerDatabase(config.databasePath);
   const services = new PrimerServices(config, database, new DeterministicEmbeddingProvider(), undefined, answerProvider);

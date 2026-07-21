@@ -95,6 +95,43 @@ export class PrimerDatabase {
     this.db.close();
   }
 
+  atomic<T>(operation: () => T): T {
+    return this.db.transaction(operation)();
+  }
+
+  diagnostics(): {
+    schemaVersion: number;
+    integrity: string;
+    foreignKeyViolations: number;
+    counts: Record<string, number>;
+  } {
+    const schema = this.db.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'").get() as
+      | { value: string }
+      | undefined;
+    const integrity = this.db.pragma("integrity_check", { simple: true }) as string;
+    const foreignKeyViolations = (this.db.pragma("foreign_key_check") as unknown[]).length;
+    const counts: Record<string, number> = {};
+    for (const table of [
+      "source_registrations", "sources", "records", "index_decisions", "traces",
+      "evaluation_runs", "sync_runs", "web_sessions",
+    ]) {
+      const row = this.db.prepare(`SELECT COUNT(*) count FROM ${table}`).get() as { count: number };
+      counts[table] = row.count;
+    }
+    return {
+      schemaVersion: Number(schema?.value ?? 0),
+      integrity,
+      foreignKeyViolations,
+      counts,
+    };
+  }
+
+  async backup(destination: string): Promise<{ destination: string; pages: number }> {
+    mkdirSync(dirname(destination), { recursive: true });
+    const result = await this.db.backup(destination);
+    return { destination, pages: result.totalPages };
+  }
+
   private migrate(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS schema_meta (
@@ -237,7 +274,8 @@ export class PrimerDatabase {
     this.addColumnIfMissing("records", "source_family", "TEXT NOT NULL DEFAULT 'markdown'");
     this.addColumnIfMissing("sync_runs", "owner_pid", "INTEGER");
     this.db.exec("CREATE INDEX IF NOT EXISTS idx_sources_registration ON sources(registration_id)");
-    this.db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_sources_registration_external ON sources(registration_id, external_id) WHERE registration_id IS NOT NULL AND external_id IS NOT NULL");
+    this.db.exec("DROP INDEX IF EXISTS idx_sources_registration_external");
+    this.db.exec("CREATE INDEX IF NOT EXISTS idx_sources_registration_external ON sources(registration_id, external_id)");
     this.db
       .prepare("INSERT INTO schema_meta (key, value) VALUES ('schema_version', '5') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
       .run();
@@ -404,10 +442,9 @@ export class PrimerDatabase {
       .run(checkpointCursor ?? null, nowIso(), id);
   }
 
-  sourceIdForExternalId(registrationId: string, externalId: string): string | undefined {
-    const row = this.db.prepare("SELECT source_id FROM sources WHERE registration_id = ? AND external_id = ?")
-      .get(registrationId, externalId) as { source_id: string } | undefined;
-    return row?.source_id;
+  sourceIdsForExternalId(registrationId: string, externalId: string): string[] {
+    return (this.db.prepare("SELECT source_id FROM sources WHERE registration_id = ? AND external_id = ? ORDER BY source_id")
+      .all(registrationId, externalId) as Array<{ source_id: string }>).map((row) => row.source_id);
   }
 
   listSourceIdsForRegistration(registrationId: string): string[] {

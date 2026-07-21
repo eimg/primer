@@ -1,6 +1,6 @@
 # Primer conceptual architecture
 
-**Status:** Phase 6 and external-connector readiness complete. The CLI and built-in Node HTTP adapters share the application services, SQLite index, connector/processor registry, registered-source lifecycle, retrieval, answer, trace, and evaluation modules. `primer.connector.v1` supports local and HTTP acquisition through the same synchronization workflow. The React/Vite application consumes the HTTP API for account/content operations, grounded chat, evidence navigation, retrieval inspection, and evaluation reporting. Live connectors, an optional Pi simulation, and ecosystem integrations remain later. Components are logical ownership boundaries, not separate services.
+**Status:** Phase 7 complete; development is paused for manual live testing. The CLI and built-in Node HTTP adapters share the application services, SQLite index, connector/processor registry, registered-source lifecycle, retrieval, answer, trace, evaluation, diagnostics, backup, and readiness modules. `primer.connector.v1` supports local and HTTP acquisition through the same synchronization workflow. The React/Vite application consumes the HTTP API for account/content operations, grounded chat, evidence navigation, retrieval inspection, and evaluation reporting. Live connectors, an optional Pi simulation, and ecosystem integrations remain later. Components are logical ownership boundaries, not separate services.
 
 ## Delivery shape
 
@@ -99,7 +99,7 @@ Accepts, rejects, or down-ranks content using explicit rules. Each decision reco
 
 ### Record writer
 
-Applies idempotent changes. It owns stable record identity, checksums, replacement, deletion, and the regeneration of affected search representations.
+Applies idempotent changes. It owns stable record identity, checksums, replacement, deletion, and the regeneration of affected search representations. For managed synchronization, all prepared source writes, removals, checkpoint advancement, and the completed-run record share one SQLite transaction. Acquisition and embedding finish before that transaction begins; failure rolls back the entire commit while preserving a visible failed run.
 
 ### Knowledge index
 
