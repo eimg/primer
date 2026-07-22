@@ -180,6 +180,12 @@ The contract carries stable external identity and revision, provenance, raw cont
 
 **Consequence:** Passing automation makes the build eligible for manual testing; it does not start Phase 8. Live model runs remain explicit paid/network actions, semantic-review warnings require human judgment, and any defect discovered during the pause should be recorded before prompts, thresholds, permissions, or fixture expectations change. Real connectors remain externally developed and deferred.
 
+### D-029 — Add bounded query planning without exposing retrieval as a model tool
+
+**Decision:** Grounded answer workflows use one structured Vercel AI SDK/OpenRouter call to propose at most four query strings. Primer validates, trims, deduplicates, and bounds them; always retains the original question; and falls back to it on invalid output or provider failure. The model cannot choose an actor, group, project, ACL, source filter, candidate, or evidence item. Primer executes every query against one application-owned authorized population, aggregates rank contributions, and continues through the existing evidence, answer, and citation-validation workflow. Direct retrieval/context and deterministic regression runs remain single-query baselines.
+
+**Consequence:** Chat gains immediate recall value and inspectable multi-step behavior without MCP, tool calling, or an agent loop. `primer.retrieval.v4` records the plan and each query run, while NDJSON status events make planning, numbered retrieval, fusion, generation, and validation visible. Live answers incur one additional planning model call; planner failure degrades safely to previous behavior. Any future tool-exposed search remains a separate decision with its own authentication and model-control boundary.
+
 ## Resolved product questions
 
 ### Q-002 — Who is the primary user? — Resolved by D-012 and D-018

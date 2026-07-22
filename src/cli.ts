@@ -3,6 +3,7 @@ import { PrimerDatabase } from "./database.js";
 import { loadConfig, type PrimerConfig } from "./config.js";
 import { createEmbeddingProvider, DeterministicEmbeddingProvider } from "./embeddings.js";
 import { createAnswerProvider } from "./answers.js";
+import { createQueryPlanner } from "./planner.js";
 import { validateFixture } from "./fixture.js";
 import { PrimerServices, type AnswerEvaluationResult, type EvaluationResult, type PrimerDiagnostics, type ReadinessReport } from "./services.js";
 import type { GroundedAnswer, OrchestratorContextPack, RetrievalTrace, SyncRun, ValidationReport } from "./types.js";
@@ -262,7 +263,14 @@ async function withServices<T>(
   const embeddings = needsEmbeddings ? createEmbeddingProvider(config) : new DeterministicEmbeddingProvider();
   try {
     return await action(
-      new PrimerServices(config, database, embeddings, undefined, needsAnswers ? createAnswerProvider(config) : undefined),
+      new PrimerServices(
+        config,
+        database,
+        embeddings,
+        undefined,
+        needsAnswers ? createAnswerProvider(config) : undefined,
+        needsAnswers ? createQueryPlanner(config) : undefined,
+      ),
     );
   } finally {
     database.close();

@@ -4,6 +4,8 @@
 
 The retrieval runner evaluates fourteen cases against indexed Markdown and Slack records and skips the code-context-only exact-symbol case. The answer runner evaluates the same eligible organizational-knowledge cases, persists model identity, answers, citations, expected-point coverage, permission results, abstention behavior, usage, and timing, and skips that code-only case. Git symbol locations are recorded separately as `expectedCodeContextRefs`; they are not Primer record expectations and are not scored by either runner. A later Pi simulation or Helix integration evaluation will verify them against a pinned checkout. Deterministic offline verification exercises the pipeline and contracts; it is not the live semantic-quality baseline.
 
+The retrieval-only runner intentionally remains the stable single-query baseline so model planning cannot hide a retriever regression. Grounded-answer runs use the configured bounded planner in live mode. Their saved `primer.retrieval.v4` traces record the plan, per-query lexical and semantic candidates, aggregate fusion, fallback state, planner model, usage, and timing. Deterministic answer evaluation uses the original question only to preserve reproducible Phase 7 floors; dedicated planner tests cover multi-query bounding, deduplication, ordering, failure fallback, progress stages, and permission safety.
+
 Primer must evaluate the evidence pipeline before evaluating prose quality. A fluent answer does not compensate for missing, unauthorized, stale, or unsupported evidence.
 
 ## Evaluation unit
@@ -90,7 +92,7 @@ Answer runs persist the full citation validator result: cited IDs, invalid IDs, 
 
 ### Performance
 
-Measure latency separately for authorization, lexical retrieval, semantic retrieval, fusion/policy, evidence construction, generation, and validation. The first release establishes observable baselines before scale targets are set.
+Measure latency separately for planning, authorization, each lexical and semantic retrieval pass, fusion/policy, evidence construction, generation, and validation. The first release establishes observable baselines before scale targets are set.
 
 ### Operational contracts
 

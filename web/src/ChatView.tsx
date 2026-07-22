@@ -5,6 +5,7 @@ interface ChatMessage {
   id: string;
   question: string;
   status: string;
+  stage?: string;
   result?: GroundedAnswer;
   error?: string;
 }
@@ -41,7 +42,7 @@ export function ChatView({ projects }: { projects: Project[] }) {
     const trimmed = nextQuestion.trim();
     if (!trimmed || sending) return;
     const id = `message-${Date.now()}`;
-    setMessages((current) => [...current, { id, question: trimmed, status: "Starting grounded search" }]);
+    setMessages((current) => [...current, { id, question: trimmed, status: "Starting grounded search", stage: "planning" }]);
     setQuestion("");
     setSending(true);
     setSelectedEvidence(undefined);
@@ -49,7 +50,7 @@ export function ChatView({ projects }: { projects: Project[] }) {
       const result = await api.streamChat(
         { question: trimmed, ...(nextProjectId ? { projectId: nextProjectId } : {}), limit: 5 },
         {
-          onStatus: (status) => setMessages((current) => current.map((message) => message.id === id ? { ...message, status } : message)),
+          onStatus: (status, stage) => setMessages((current) => current.map((message) => message.id === id ? { ...message, status, stage } : message)),
         },
       );
       setMessages((current) => current.map((message) => message.id === id ? { ...message, result, status: "Grounded answer ready" } : message));
@@ -81,7 +82,7 @@ export function ChatView({ projects }: { projects: Project[] }) {
             <div className="assistant-label"><span className="mini-mark">P</span><strong>Primer</strong>{!message.result && !message.error && <em>{message.status}</em>}</div>
             {message.error ? <p className="inline-error">{message.error}</p> : <div className="answer-copy" aria-live="polite">{message.result
               ? <AnswerText text={message.result.answer} onEvidence={(id) => openEvidence(message.result!, id)} />
-              : <span className="working-indicator"><span>Primer is working</span><span aria-hidden="true">…</span><span className="sr-only">. {message.status}</span></span>}
+              : <span className="working-indicator" data-stage={message.stage}><span className="working-pulse" aria-hidden="true" /><span>{message.status}</span></span>}
             </div>}
             {message.result && <>
               <div className="answer-meta"><span className={message.result.citationValidation.valid ? "valid" : "review"}>{message.result.citationValidation.valid ? "Citations valid" : "Review citations"}</span><span>{message.result.evidence.length} evidence records</span><span>{message.result.timingMs.total.toFixed(1)} ms</span><span>{message.result.model}</span></div>

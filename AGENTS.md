@@ -1,6 +1,6 @@
 # Primer agent guide
 
-Primer has completed Phases 1 through 7 plus the external-connector readiness gate. Development is paused for manual live testing under `docs/manual-live-testing.md`; do not begin Phase 8 or add live connectors without a new explicit direction. The complete CLI pipeline, local HTTP API, account/content operations, streamed grounded chat, evidence navigation, account-scoped retrieval inspection, evaluation reporting, `primer.connector.v1`, atomic synchronization, diagnostics, backup, and readiness gates are implemented. The product continues to use only local fixture data. The `acme-v0.1` full and later targeted live runs are preserved; `acme-v0.3` is the active verified fixture. Browser code must not access SQLite or provider credentials, and chat must derive its actor only from the active server session. Primer does not index source-code bodies; Helix/Pi owns real repository exploration.
+Primer has completed Phases 1 through 7, the external-connector readiness gate, and a scoped Level 2 query-planning enhancement. Development is paused for manual live testing under `docs/manual-live-testing.md`; do not begin Phase 8 or add live connectors without a new explicit direction. The complete CLI pipeline, local HTTP API, account/content operations, streamed grounded chat, evidence navigation, account-scoped retrieval inspection, evaluation reporting, `primer.connector.v1`, atomic synchronization, diagnostics, backup, readiness gates, and bounded answer-query planning are implemented. The product continues to use only local fixture data. The `acme-v0.1` full and later targeted live runs are preserved; `acme-v0.3` is the active verified fixture. Browser code must not access SQLite or provider credentials, and chat must derive its actor only from the active server session. Primer does not index source-code bodies; Helix/Pi owns real repository exploration.
 
 This file is an entrypoint, not the full specification.
 
@@ -30,6 +30,7 @@ The current local runtime flow is Acme Issues → Helix → Acme Todo, followed 
 - Original systems are authoritative; the search index is derived and rebuildable.
 - Different source types retain source-aware processing and provenance.
 - Authorization filtering happens before evidence reaches a model.
+- Query planning may vary search text only. It cannot choose the actor, groups, project scope, ACL filters, evidence, or answer; every planned query runs against the same pre-authorized population.
 - Retrieval remains inspectable from candidates through final evidence.
 - Generated claims must link to supporting evidence or state uncertainty.
 - Exact search and semantic search are complementary; neither is treated as truth.
@@ -67,6 +68,7 @@ src/markdown.ts     frontmatter and heading-aware Markdown processor
 src/slack.ts        deterministic Slack thread processor
 src/fixture.ts      Acme fixture and stable-identity validator
 src/embeddings.ts   deterministic test adapter and official OpenRouter SDK adapter
+src/planner.ts      bounded deterministic and Vercel/OpenRouter query-planner adapters
 src/types.ts        domain and retrieval contracts
 web/                React/Vite account and content operations consuming only the API
                     plus chat, evidence, retrieval trace, and evaluation surfaces

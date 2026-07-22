@@ -5,6 +5,7 @@ import type { PrimerConfig } from "./config.js";
 import { createAnswerProvider } from "./answers.js";
 import { PrimerDatabase } from "./database.js";
 import { createEmbeddingProvider } from "./embeddings.js";
+import { createQueryPlanner } from "./planner.js";
 import { PrimerServices } from "./services.js";
 
 const SESSION_COOKIE = "primer_session";
@@ -154,6 +155,7 @@ export async function createPrimerHttpApp(
     createEmbeddingProvider(config),
     undefined,
     createAnswerProvider(config),
+    createQueryPlanner(config),
   );
   const report = await services.initialize();
   if (!report.valid) {
@@ -226,20 +228,17 @@ export async function createPrimerHttpApp(
           "cache-control": "no-store",
           "x-content-type-options": "nosniff",
         });
-        streamEvent(response, { type: "status", stage: "retrieval", message: "Retrieving authorized evidence" });
         try {
           const projectId = optionalString(body.projectId, "projectId");
-          const answer = await services.ask({
-            question: requiredString(body.question, "question"),
-            userId: active.user.id,
-            ...(projectId ? { projectId } : {}),
-            limit: evidenceLimit(body.limit),
-          });
-          streamEvent(response, {
-            type: "status",
-            stage: "validation",
-            message: answer.citationValidation.valid ? "Citations validated" : "Citation review required",
-          });
+          const answer = await services.ask(
+            {
+              question: requiredString(body.question, "question"),
+              userId: active.user.id,
+              ...(projectId ? { projectId } : {}),
+              limit: evidenceLimit(body.limit),
+            },
+            { onProgress: (event) => streamEvent(response, { type: "status", ...event }) },
+          );
           for (const text of answerChunks(answer.answer)) {
             streamEvent(response, { type: "delta", text });
             await new Promise<void>((resolve) => setImmediate(resolve));

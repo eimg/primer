@@ -1,4 +1,5 @@
-export const CONTRACT_VERSION = "primer.retrieval.v3";
+export const CONTRACT_VERSION = "primer.retrieval.v4";
+export const QUERY_PLAN_CONTRACT_VERSION = "primer.query-plan.v1";
 export const CONTEXT_CONTRACT_VERSION = "primer.context.v1";
 export const ANSWER_CONTRACT_VERSION = "primer.answer.v1";
 export const ANSWER_EVALUATION_CONTRACT_VERSION = "primer.answer-evaluation.v1";
@@ -101,6 +102,55 @@ export interface EmbeddingProvider {
   embedMany(values: string[]): Promise<number[][]>;
 }
 
+export interface ModelUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+}
+
+export interface QueryPlannerInput {
+  question: string;
+  projectId?: string;
+  maxQueries: number;
+}
+
+export interface QueryPlannerResult {
+  queries: string[];
+  modelId?: string;
+  usage?: ModelUsage;
+}
+
+export interface QueryPlanner {
+  readonly modelId: string;
+  plan(input: QueryPlannerInput): Promise<QueryPlannerResult>;
+}
+
+export interface QueryPlanTrace {
+  schemaVersion: typeof QUERY_PLAN_CONTRACT_VERSION;
+  strategy: "single" | "planned";
+  queries: string[];
+  model: string;
+  fallback: boolean;
+  fallbackReason?: "planner-unavailable" | "planner-error" | "invalid-plan";
+  usage?: ModelUsage;
+  timingMs: number;
+}
+
+export interface QueryRunTrace {
+  queryIndex: number;
+  query: string;
+  lexical: RetrievalCandidate[];
+  semantic: RetrievalCandidate[];
+  timingMs: { lexical: number; semantic: number; total: number };
+}
+
+export interface WorkflowProgress {
+  stage: "planning" | "retrieval" | "fusion" | "generation" | "validation";
+  message: string;
+  queryIndex?: number;
+  queryCount?: number;
+}
+
 export interface RetrievalCandidate {
   recordId: string;
   title: string;
@@ -153,11 +203,14 @@ export interface RetrievalTrace {
   policyVersion: string;
   processorVersions: Record<string, string>;
   embeddingModel: string;
+  queryPlan: QueryPlanTrace;
+  queryRuns: QueryRunTrace[];
   lexical: RetrievalCandidate[];
   semantic: RetrievalCandidate[];
   fused: FusedCandidate[];
   evidence: Evidence[];
   timingMs: {
+    planning: number;
     authorization: number;
     lexical: number;
     semantic: number;
@@ -214,11 +267,7 @@ export interface AnswerProviderResult {
   text: string;
   finishReason: string;
   modelId?: string;
-  usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-    totalTokens?: number;
-  };
+  usage?: ModelUsage;
 }
 
 export interface AnswerProvider {

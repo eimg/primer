@@ -16,6 +16,7 @@ import {
   CONTRACT_VERSION,
   MARKDOWN_PROCESSOR_VERSION,
   POLICY_VERSION,
+  QUERY_PLAN_CONTRACT_VERSION,
   SLACK_PROCESSOR_VERSION,
   STORAGE_SCHEMA_VERSION,
   type AnswerProvider,
@@ -29,6 +30,9 @@ import {
   type LocalSession,
   type OrchestratorContextPack,
   type Project,
+  type QueryPlanner,
+  type QueryPlanTrace,
+  type QueryRunTrace,
   type RetrievalCandidate,
   type RetrievalTrace,
   type RegistrationRemovalResult,
@@ -37,6 +41,7 @@ import {
   type SyncRun,
   type SyncTiming,
   type ValidationReport,
+  type WorkflowProgress,
 } from "./types.js";
 import { checksum, elapsedMs, newSessionId, newSyncId, newTraceId, nowIso } from "./utils.js";
 
@@ -292,6 +297,7 @@ export class PrimerServices {
     readonly embeddings: EmbeddingProvider,
     connectors?: ConnectorRegistry,
     readonly answers?: AnswerProvider,
+    readonly planner?: QueryPlanner,
   ) {
     this.connectors = connectors ?? createDefaultConnectorRegistry(config.fixtureDir);
   }
@@ -791,7 +797,76 @@ export class PrimerServices {
     return result;
   }
 
-  async retrieve(input: { question: string; userId: string; projectId?: string; limit?: number }): Promise<RetrievalTrace> {
+  private async plannedQueries(
+    input: { question: string; projectId?: string },
+    progress?: (event: WorkflowProgress) => void,
+  ): Promise<QueryPlanTrace> {
+    const planningStart = process.hrtime.bigint();
+    progress?.({ stage: "planning", message: "Planning focused searches" });
+    if (!this.planner) {
+      return {
+        schemaVersion: QUERY_PLAN_CONTRACT_VERSION,
+        strategy: "planned",
+        queries: [input.question],
+        model: "primer-original-query",
+        fallback: true,
+        fallbackReason: "planner-unavailable",
+        timingMs: elapsedMs(planningStart),
+      };
+    }
+    try {
+      const result = await this.planner.plan({
+        question: input.question,
+        ...(input.projectId ? { projectId: input.projectId } : {}),
+        maxQueries: 4,
+      });
+      const original = input.question.replace(/\s+/g, " ").trim().slice(0, 320);
+      const supplied = Array.isArray(result.queries)
+        ? result.queries.map((query) => typeof query === "string" ? query.replace(/\s+/g, " ").trim().slice(0, 320) : "").filter(Boolean)
+        : [];
+      const seen = new Set<string>();
+      const queries = [original, ...supplied].filter((query) => {
+        const key = query.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).slice(0, 4);
+      const invalid = supplied.length === 0;
+      const plan: QueryPlanTrace = {
+        schemaVersion: QUERY_PLAN_CONTRACT_VERSION,
+        strategy: "planned",
+        queries: invalid ? [original] : queries,
+        model: result.modelId ?? this.planner.modelId,
+        fallback: invalid,
+        ...(invalid ? { fallbackReason: "invalid-plan" as const } : {}),
+        ...(result.usage ? { usage: result.usage } : {}),
+        timingMs: elapsedMs(planningStart),
+      };
+      progress?.({
+        stage: "planning",
+        message: plan.fallback ? "Using the original question" : `Planned ${plan.queries.length} focused search${plan.queries.length === 1 ? "" : "es"}`,
+      });
+      return plan;
+    } catch {
+      const plan: QueryPlanTrace = {
+        schemaVersion: QUERY_PLAN_CONTRACT_VERSION,
+        strategy: "planned",
+        queries: [input.question.replace(/\s+/g, " ").trim().slice(0, 320)],
+        model: this.planner.modelId,
+        fallback: true,
+        fallbackReason: "planner-error",
+        timingMs: elapsedMs(planningStart),
+      };
+      progress?.({ stage: "planning", message: "Planner unavailable; using the original question" });
+      return plan;
+    }
+  }
+
+  private async retrieveWithPlan(
+    input: { question: string; userId: string; projectId?: string; limit?: number },
+    queryPlan: QueryPlanTrace,
+    progress?: (event: WorkflowProgress) => void,
+  ): Promise<RetrievalTrace> {
     const totalStart = process.hrtime.bigint();
     const user = this.getUser(input.userId);
     const limit = Math.max(1, Math.min(input.limit ?? 6, 20));
@@ -810,40 +885,81 @@ export class PrimerServices {
     }
 
     const candidateLimit = Math.max(limit * 4, 20);
-    const lexicalStart = process.hrtime.bigint();
-    const lexical = this.database.lexicalSearch(
-      permitted.map((record) => record.id),
-      withoutProjectName(input.question, input.projectId),
-      candidateLimit,
-    );
-    const lexicalMs = elapsedMs(lexicalStart);
+    const permittedIds = permitted.map((record) => record.id);
+    const queryRuns: QueryRunTrace[] = [];
+    let lexicalMs = 0;
+    let semanticMs = 0;
+    for (const [index, query] of queryPlan.queries.entries()) {
+      progress?.({
+        stage: "retrieval",
+        message: `Searching ${index + 1} of ${queryPlan.queries.length}: ${query.length > 72 ? `${query.slice(0, 69)}...` : query}`,
+        queryIndex: index + 1,
+        queryCount: queryPlan.queries.length,
+      });
+      const runStart = process.hrtime.bigint();
+      const lexicalStart = process.hrtime.bigint();
+      const lexical = this.database.lexicalSearch(permittedIds, withoutProjectName(query, input.projectId), candidateLimit);
+      const runLexicalMs = elapsedMs(lexicalStart);
+      lexicalMs += runLexicalMs;
 
-    const semanticStart = process.hrtime.bigint();
-    const queryVector = await this.embeddings.embed(input.question);
-    const semantic: RetrievalCandidate[] = permitted
-      .map((record) => ({ record, score: cosineSimilarity(queryVector, record.embedding) }))
-      .sort((left, right) => right.score - left.score || left.record.id.localeCompare(right.record.id))
-      .slice(0, candidateLimit)
-      .map(({ record, score }, index) => ({
-        recordId: record.id,
-        title: record.title,
-        sourceRef: record.sourceRef,
-        ...(record.projectId ? { projectId: record.projectId } : {}),
-        rank: index + 1,
-        score,
-        reason: `cosine similarity ${score.toFixed(4)} using ${this.embeddings.modelId}`,
-      }));
-    const semanticMs = elapsedMs(semanticStart);
+      const semanticStart = process.hrtime.bigint();
+      const queryVector = await this.embeddings.embed(query);
+      const semantic: RetrievalCandidate[] = permitted
+        .map((record) => ({ record, score: cosineSimilarity(queryVector, record.embedding) }))
+        .sort((left, right) => right.score - left.score || left.record.id.localeCompare(right.record.id))
+        .slice(0, candidateLimit)
+        .map(({ record, score }, candidateIndex) => ({
+          recordId: record.id,
+          title: record.title,
+          sourceRef: record.sourceRef,
+          ...(record.projectId ? { projectId: record.projectId } : {}),
+          rank: candidateIndex + 1,
+          score,
+          reason: `cosine similarity ${score.toFixed(4)} using ${this.embeddings.modelId}`,
+        }));
+      const runSemanticMs = elapsedMs(semanticStart);
+      semanticMs += runSemanticMs;
+      queryRuns.push({
+        queryIndex: index + 1,
+        query,
+        lexical,
+        semantic,
+        timingMs: { lexical: runLexicalMs, semantic: runSemanticMs, total: elapsedMs(runStart) },
+      });
+    }
+
+    const collapse = (kind: "lexical" | "semantic"): RetrievalCandidate[] => {
+      const best = new Map<string, RetrievalCandidate>();
+      for (const run of queryRuns) {
+        for (const candidate of run[kind]) {
+          const annotated = { ...candidate, reason: `query ${run.queryIndex}/${queryRuns.length} \"${run.query}\" · ${candidate.reason}` };
+          const previous = best.get(candidate.recordId);
+          if (!previous || candidate.rank < previous.rank || (candidate.rank === previous.rank && candidate.score > previous.score)) {
+            best.set(candidate.recordId, annotated);
+          }
+        }
+      }
+      return [...best.values()]
+        .sort((left, right) => left.rank - right.rank || right.score - left.score || left.recordId.localeCompare(right.recordId))
+        .slice(0, candidateLimit)
+        .map((candidate, index) => ({ ...candidate, rank: index + 1 }));
+    };
+    const lexical = collapse("lexical");
+    const semantic = collapse("semantic");
 
     const fusionStart = process.hrtime.bigint();
+    progress?.({ stage: "fusion", message: "Fusing and ranking authorized evidence" });
     const candidateMap = new Map<string, FusedCandidate>();
-    const addCandidate = (candidate: RetrievalCandidate, kind: "lexical" | "semantic") => {
+    const addCandidate = (candidate: RetrievalCandidate, kind: "lexical" | "semantic", run: QueryRunTrace) => {
       const previous = candidateMap.get(candidate.recordId);
       const contribution = 1 / (60 + candidate.rank);
-      const retrievalReasons = [...(previous?.retrievalReasons ?? []), candidate.reason];
+      const reason = `query ${run.queryIndex}/${queryRuns.length} \"${run.query}\" · ${candidate.reason}`;
+      const retrievalReasons = [...new Set([...(previous?.retrievalReasons ?? []), reason])];
       candidateMap.set(candidate.recordId, {
         ...(previous ?? candidate),
-        ...(kind === "lexical" ? { lexicalRank: candidate.rank } : { semanticRank: candidate.rank }),
+        ...(kind === "lexical"
+          ? { lexicalRank: Math.min(previous?.lexicalRank ?? Number.POSITIVE_INFINITY, candidate.rank) }
+          : { semanticRank: Math.min(previous?.semanticRank ?? Number.POSITIVE_INFINITY, candidate.rank) }),
         baseFusedScore: (previous?.baseFusedScore ?? 0) + contribution,
         fusedScore: (previous?.baseFusedScore ?? 0) + contribution,
         retrievalReasons,
@@ -851,8 +967,10 @@ export class PrimerServices {
         policyReasons: [],
       });
     };
-    lexical.forEach((candidate) => addCandidate(candidate, "lexical"));
-    semantic.forEach((candidate) => addCandidate(candidate, "semantic"));
+    queryRuns.forEach((run) => {
+      run.lexical.forEach((candidate) => addCandidate(candidate, "lexical", run));
+      run.semantic.forEach((candidate) => addCandidate(candidate, "semantic", run));
+    });
     const fused = applyRankingPolicy([...candidateMap.values()], permitted);
     const fusionMs = elapsedMs(fusionStart);
 
@@ -890,17 +1008,20 @@ export class PrimerServices {
       policyVersion: POLICY_VERSION,
       processorVersions: { markdown: MARKDOWN_PROCESSOR_VERSION, slack: SLACK_PROCESSOR_VERSION },
       embeddingModel: this.embeddings.modelId,
+      queryPlan,
+      queryRuns,
       lexical,
       semantic,
       fused,
       evidence,
       timingMs: {
+        planning: queryPlan.timingMs,
         authorization,
         lexical: lexicalMs,
         semantic: semanticMs,
         fusion: fusionMs,
         evidence: evidenceMs,
-        total: elapsedMs(totalStart),
+        total: queryPlan.timingMs + elapsedMs(totalStart),
       },
       createdAt: nowIso(),
     };
@@ -908,17 +1029,35 @@ export class PrimerServices {
     return trace;
   }
 
+  async retrieve(input: { question: string; userId: string; projectId?: string; limit?: number }): Promise<RetrievalTrace> {
+    return this.retrieveWithPlan(input, {
+      schemaVersion: QUERY_PLAN_CONTRACT_VERSION,
+      strategy: "single",
+      queries: [input.question],
+      model: "primer-original-query",
+      fallback: false,
+      timingMs: 0,
+    });
+  }
+
   async context(input: { question: string; userId: string; projectId?: string; limit?: number }): Promise<OrchestratorContextPack> {
     return buildContextPack(await this.retrieve(input));
   }
 
-  async ask(input: { question: string; userId: string; projectId?: string; limit?: number }): Promise<GroundedAnswer> {
+  async ask(
+    input: { question: string; userId: string; projectId?: string; limit?: number },
+    options: { onProgress?: (event: WorkflowProgress) => void } = {},
+  ): Promise<GroundedAnswer> {
     const totalStart = process.hrtime.bigint();
-    const trace = await this.retrieve(input);
+    this.getUser(input.userId);
+    const queryPlan = await this.plannedQueries(input, options.onProgress);
+    const trace = await this.retrieveWithPlan(input, queryPlan, options.onProgress);
     const context = buildContextPack(trace);
+    options.onProgress?.({ stage: "generation", message: "Assessing evidence and composing a grounded answer" });
     if (context.evidence.length === 0 || !hasSufficientAnswerEvidence(trace)) {
       const validationStart = process.hrtime.bigint();
       const answer = "I do not have enough authorized evidence to answer.";
+      options.onProgress?.({ stage: "validation", message: "Validating the grounded response" });
       const citationValidation = validateCitations(answer, context.evidence);
       const validation = elapsedMs(validationStart);
       return {
@@ -956,11 +1095,13 @@ export class PrimerServices {
     };
     let generated = await this.answers.generate(generationInput);
     let validationStart = process.hrtime.bigint();
+    options.onProgress?.({ stage: "validation", message: "Validating citations" });
     let citationValidation = validateCitations(generated.text, context.evidence);
     let validation = elapsedMs(validationStart);
     let generationAttempts = 1;
     if (!citationValidation.valid) {
       const first = generated;
+      options.onProgress?.({ stage: "generation", message: "Repairing citation coverage" });
       generated = await this.answers.generate({
         ...generationInput,
         revision: {
@@ -973,6 +1114,7 @@ export class PrimerServices {
       generated = { ...generated, ...(combinedUsage ? { usage: combinedUsage } : {}) };
       generationAttempts = 2;
       validationStart = process.hrtime.bigint();
+      options.onProgress?.({ stage: "validation", message: "Revalidating repaired citations" });
       citationValidation = validateCitations(generated.text, context.evidence);
       validation += elapsedMs(validationStart);
     }

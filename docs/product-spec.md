@@ -1,6 +1,6 @@
 # Primer MVP product specification
 
-**Status:** Phase 7 product contract complete; development is paused for manual live testing. The CLI, core web, external-connector readiness, atomic synchronization, diagnostics, backup, and readiness milestones are implemented. Live vendor connectors are intentionally not implemented.
+**Status:** Phase 7 product contract and the scoped Level 2 query-planning enhancement are complete; development is paused for manual live testing. The CLI, core web, external-connector readiness, atomic synchronization, diagnostics, backup, and readiness milestones are implemented. Live vendor connectors are intentionally not implemented.
 
 ## Objective
 
@@ -119,6 +119,8 @@ The web operator can manage local accounts, group/project membership, active ses
 
 - Searchable records keep content, provenance, metadata, authority, freshness, resolution state, and ACL information together.
 - Lexical and semantic retrieval execute as distinct, visible stages.
+- Direct retrieval remains single-query and deterministic. Grounded answers may use one bounded plan of at most four query variants; each variant is executed by Primer against the same actor- and project-authorized population before fusion.
+- Planner output is validated search text only. It cannot change identity, groups, scope, ACL filters, source policy, or evidence selection, and planning failure falls back to the original question.
 - Authorization and hard scope constraints apply before evidence construction.
 - Rank fusion does not compare incompatible raw scores directly.
 - Post-fusion adjustments are named, bounded, and inspectable.

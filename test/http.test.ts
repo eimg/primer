@@ -178,9 +178,17 @@ test("streamed chat uses the active account and keeps traces account-scoped", as
     assert.match(response.headers.get("content-type") ?? "", /application\/x-ndjson/);
     const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line) as {
       type: string;
+      stage?: string;
       answer?: GroundedAnswer;
     });
-    assert.ok(events.some((event) => event.type === "status"));
+    const stages = events.filter((event) => event.type === "status").map((event) => event.stage);
+    assert.ok(stages.includes("planning"));
+    assert.ok(stages.includes("retrieval"));
+    assert.ok(stages.includes("fusion"));
+    assert.ok(stages.includes("generation"));
+    assert.ok(stages.includes("validation"));
+    assert.ok(stages.indexOf("planning") < stages.indexOf("retrieval"));
+    assert.ok(stages.indexOf("retrieval") < stages.indexOf("fusion"));
     assert.ok(events.some((event) => event.type === "delta"));
     const answer = events.find((event) => event.type === "result")?.answer;
     assert.ok(answer);

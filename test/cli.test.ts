@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
+import { CONTRACT_VERSION } from "../src/types.js";
 
 const projectRoot = process.cwd();
 
@@ -108,7 +109,7 @@ test("CLI JSON contracts cover init, ingest, and retrieval", () => {
       processorVersions: Record<string, string>;
       evidence: Array<{ recordId: string }>;
     };
-    assert.equal(trace.schemaVersion, "primer.retrieval.v3");
+    assert.equal(trace.schemaVersion, CONTRACT_VERSION);
     assert.equal(trace.storageSchemaVersion, 5);
     assert.equal(trace.policyVersion, "index-v1");
     assert.equal(trace.processorVersions.markdown, "markdown-v1");

@@ -90,7 +90,7 @@ Sign in as Maya, scope to ClientCore, and ask:
 
 > What does CC_IMPORT_017 mean, and when does it occur?
 
-Confirm that the answer is a live chat-model response, citations open the exact evidence, source references and timestamps are visible, and the retrieval trace shows lexical, semantic, fused, and evidence stages.
+Confirm that the blinking working indicator advances through planning, each numbered search pass, fusion, generation, and citation validation. Confirm that the answer is a live chat-model response, citations open the exact evidence, source references and timestamps are visible, and the saved retrieval trace records the bounded query plan, per-query lexical/semantic candidates, fused ranking, and evidence. A normal live answer now uses one planning model call plus the grounded-answer call and may use one additional repair call.
 
 ### Access differential
 

@@ -1,6 +1,6 @@
 # Primer delivery plan
 
-**Status:** Phase 7 is complete and development is paused for manual live testing. Phases 1 through 7 and the external-connector readiness gate are complete: the CLI pipeline, local HTTP API, account/content operations, streamed grounded chat, citation/evidence navigation, account-scoped retrieval inspection, persisted evaluation reporting, `primer.connector.v1`, atomic synchronization, diagnostics, backups, and versioned readiness gates are implemented. The product still uses only local fixture data. The `acme-v0.1` full baseline and targeted follow-up runs validated citation, abstention, repair, permission, and expected-point behavior; `acme-v0.3` is the active verified fixture.
+**Status:** Phase 7 and the scoped Level 2 query-planning enhancement are complete, and development is paused for manual live testing. Phases 1 through 7 and the external-connector readiness gate are complete: the CLI pipeline, local HTTP API, account/content operations, streamed grounded chat, citation/evidence navigation, account-scoped retrieval inspection, persisted evaluation reporting, `primer.connector.v1`, atomic synchronization, diagnostics, backups, and versioned readiness gates are implemented. The product still uses only local fixture data. The `acme-v0.1` full baseline and targeted follow-up runs validated citation, abstention, repair, permission, and expected-point behavior; `acme-v0.3` is the active verified fixture.
 
 The plan uses decision gates rather than calendar estimates. Each phase should leave behind inspectable artifacts and evidence, not only code.
 
@@ -167,6 +167,10 @@ Exit evidence:
 - the team can run a bounded internal-test rehearsal using synthetic or approved local data without deploying a live connector.
 
 Manual acceptance is intentionally not marked complete by automation. Use [`manual-live-testing.md`](./manual-live-testing.md), record the result against an exact commit and model pair, and open issues before changing code or thresholds. Phase 8 remains inactive during the pause.
+
+## Post-Phase 7 scoped enhancement: Level 2 query planning
+
+**Status:** Complete. Grounded `ask` workflows use one Vercel AI SDK/OpenRouter structured-output call to propose at most four search variants. Primer validates and deduplicates the plan, retains the original question, falls back safely on invalid/provider output, executes all variants through the existing permission-aware hybrid retriever, and fuses their authorized candidates before ordinary evidence construction and answer generation. Direct retrieval/context and deterministic regression gates remain single-query baselines. `primer.retrieval.v4` persists the plan and every query run, and the chat stream/UI names planning, numbered retrieval, fusion, generation, and citation-validation stages. This does not expose a tool, add an agent loop, begin Phase 8, or alter connector scope.
 
 ## Phase 8: independently deployed ecosystem integrations
 

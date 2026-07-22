@@ -1,6 +1,6 @@
 # Primer conceptual architecture
 
-**Status:** Phase 7 complete; development is paused for manual live testing. The CLI and built-in Node HTTP adapters share the application services, SQLite index, connector/processor registry, registered-source lifecycle, retrieval, answer, trace, evaluation, diagnostics, backup, and readiness modules. `primer.connector.v1` supports local and HTTP acquisition through the same synchronization workflow. The React/Vite application consumes the HTTP API for account/content operations, grounded chat, evidence navigation, retrieval inspection, and evaluation reporting. Live connectors, an optional Pi simulation, and ecosystem integrations remain later. Components are logical ownership boundaries, not separate services.
+**Status:** Phase 7 and the scoped Level 2 query-planning enhancement are complete; development is paused for manual live testing. The CLI and built-in Node HTTP adapters share the application services, SQLite index, connector/processor registry, registered-source lifecycle, retrieval, answer, trace, evaluation, diagnostics, backup, and readiness modules. `primer.connector.v1` supports local and HTTP acquisition through the same synchronization workflow. The React/Vite application consumes the HTTP API for account/content operations, grounded chat, evidence navigation, retrieval inspection, and evaluation reporting. Live connectors, an optional Pi simulation, and ecosystem integrations remain later. Components are logical ownership boundaries, not separate services.
 
 ## Delivery shape
 
@@ -54,7 +54,8 @@ connector providers (`primer.connector.v1`)
 INQUIRY
 question + actor + scope
   -> authorization context
-  -> lexical and semantic retrieval
+  -> bounded query plan (grounded answers only)
+  -> lexical and semantic retrieval for each query over one authorized population
   -> fusion and policy adjustment
   -> evidence builder
   -> answer generator
@@ -62,6 +63,8 @@ question + actor + scope
 ```
 
 An inspection trace observes both paths. The trace is a first-class product output.
+
+Direct `retrieve` and `context` calls remain the stable single-query baseline. `ask` adds one structured planning call with at most four query strings. Primer validates, trims, deduplicates, and bounds the plan; failure falls back to the original question. The planner cannot emit an actor, project, ACL, source filter, or evidence selection. Application services resolve the authorized record population once, execute every query against that same population, aggregate reciprocal-rank contributions, and persist `primer.retrieval.v4` with the plan, per-query candidates, fused ranking, and final evidence.
 
 ### Future hybrid discovery path
 
@@ -299,6 +302,7 @@ Models may assist normalization, embedding, and answer generation. Each use has 
 
 - normalization receives one source object within the configured ingestion scope and returns validated derived structure;
 - embedding receives only content approved for the index;
+- query planning receives the question and fixed project label and returns search text only;
 - answering receives only the final authorized evidence set;
 - no model is the authority for ACL decisions, source identity, or citation existence.
 
@@ -310,7 +314,7 @@ OpenRouter is the initial chat and embedding provider. SDK choices remain inside
 
 Chat and embedding model IDs are configured independently. Provider credentials never enter the database, trace, browser bundle, or generated evidence. Provider SDK types remain inside adapters. Deterministic test adapters replace network calls in the normal test suite; live evaluation is explicit.
 
-The evidence pipeline is a structured workflow, not an agent loop. A later Pi simulation begins only after Primer has built authorized initial context. It cannot bypass authorization, evidence construction, or citation validation, and its discovered code context remains separate from indexed Primer evidence.
+The evidence pipeline, including Level 2 query planning, is a structured workflow, not an agent loop or model-controlled tool call. A later Pi simulation begins only after Primer has built authorized initial context. It cannot bypass authorization, evidence construction, or citation validation, and its discovered code context remains separate from indexed Primer evidence.
 
 ## Consistency and synchronization
 

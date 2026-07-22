@@ -15,6 +15,9 @@ test("retrieval exposes lexical, semantic, fused, and evidence stages", async ()
     });
 
     assert.equal(trace.schemaVersion, CONTRACT_VERSION);
+    assert.equal(trace.queryPlan.strategy, "single");
+    assert.deepEqual(trace.queryPlan.queries, ["What does CC_IMPORT_017 mean?"]);
+    assert.equal(trace.queryRuns.length, 1);
     assert.ok(trace.lexical.some((candidate) => candidate.recordId === "md:md-cc-imports#account-owner-mapping"));
     assert.ok(trace.lexical.some((candidate) => candidate.recordId === "slack:C-CC-DEV:1778147100.000100"));
     assert.ok(trace.semantic.some((candidate) => candidate.recordId === "md:md-cc-imports#account-owner-mapping"));

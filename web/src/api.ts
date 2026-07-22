@@ -94,11 +94,27 @@ export interface RetrievalTrace {
   userId: string;
   projectId?: string;
   embeddingModel: string;
+  queryPlan?: {
+    schemaVersion: string;
+    strategy: "single" | "planned";
+    queries: string[];
+    model: string;
+    fallback: boolean;
+    fallbackReason?: string;
+    timingMs: number;
+  };
+  queryRuns?: Array<{
+    queryIndex: number;
+    query: string;
+    lexical: Candidate[];
+    semantic: Candidate[];
+    timingMs: { lexical: number; semantic: number; total: number };
+  }>;
   lexical: Candidate[];
   semantic: Candidate[];
   fused: Candidate[];
   evidence: Evidence[];
-  timingMs: { authorization: number; lexical: number; semantic: number; fusion: number; evidence: number; total: number };
+  timingMs: { planning?: number; authorization: number; lexical: number; semantic: number; fusion: number; evidence: number; total: number };
   createdAt: string;
 }
 export interface EvaluationSummary { id: string; schemaVersion: string; fixtureId: string; embeddingModel: string; createdAt: string }
@@ -155,7 +171,7 @@ export const api = {
   }),
   streamChat: async (
     input: { question: string; projectId?: string; limit?: number },
-    handlers: { onStatus(message: string): void; onDelta?(text: string): void },
+    handlers: { onStatus(message: string, stage?: string): void; onDelta?(text: string): void },
   ): Promise<GroundedAnswer> => {
     const response = await fetch("/api/chat", {
       method: "POST",
@@ -178,11 +194,12 @@ export const api = {
         const event = JSON.parse(line) as {
           type: "status" | "delta" | "result" | "error";
           message?: string;
+          stage?: string;
           text?: string;
           answer?: GroundedAnswer;
           error?: { message: string };
         };
-        if (event.type === "status" && event.message) handlers.onStatus(event.message);
+        if (event.type === "status" && event.message) handlers.onStatus(event.message, event.stage);
         if (event.type === "delta" && event.text) handlers.onDelta?.(event.text);
         if (event.type === "result" && event.answer) result = event.answer;
         if (event.type === "error") throw new Error(event.error?.message ?? "Chat request failed.");
