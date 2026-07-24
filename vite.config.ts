@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: "127.0.0.1",
-    port: 4319,
-    proxy: { "/api": "http://127.0.0.1:4318" },
+    port: 8317,
+    proxy: { "/api": "http://127.0.0.1:8318" },
   },
   build: {
     outDir: "../dist/web",

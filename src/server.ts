@@ -2,7 +2,7 @@
 import { loadConfig } from "./config.js";
 import { createPrimerHttpApp } from "./http.js";
 
-const port = Number(process.env.PRIMER_PORT ?? 4318);
+const port = Number(process.env.PRIMER_PORT ?? 8318);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("PRIMER_PORT must be a valid TCP port.");
 const host = process.env.PRIMER_HOST ?? "127.0.0.1";
 const app = await createPrimerHttpApp(loadConfig());

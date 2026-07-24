@@ -78,7 +78,7 @@ npm run build
 npm run dev:api
 ```
 
-Open [http://127.0.0.1:4318](http://127.0.0.1:4318). During UI development only, `npm run dev:full` may be used instead.
+Open [http://127.0.0.1:8318](http://127.0.0.1:8318). During UI development only, `npm run dev:full` may be used instead.
 
 Verify desktop and narrow responsive layouts with the browser console open. There should be no uncaught errors, credential exposure, or broken requests.
 
@@ -129,13 +129,13 @@ Open saved retrieval traces and both persisted evaluation types. Confirm that th
 Use a local cookie jar rather than copying the cookie into notes:
 
 ```bash
-curl -sS http://127.0.0.1:4318/api/health
-curl -sS http://127.0.0.1:4318/api/config
+curl -sS http://127.0.0.1:8318/api/health
+curl -sS http://127.0.0.1:8318/api/config
 curl -sS -c /tmp/primer-cookie.txt \
   -H 'content-type: application/json' \
   -d '{"userId":"u-maya"}' \
-  http://127.0.0.1:4318/api/session
-curl -sS -b /tmp/primer-cookie.txt http://127.0.0.1:4318/api/sources
+  http://127.0.0.1:8318/api/session
+curl -sS -b /tmp/primer-cookie.txt http://127.0.0.1:8318/api/sources
 ```
 
 Confirm that an operational route without the cookie returns a categorized authorization error, invalid JSON returns a categorized request error, and `/api/config` contains no API key.

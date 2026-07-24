@@ -8,12 +8,16 @@ This file is an entrypoint, not the full specification.
 
 | Project | Local path | Responsibility |
 |---|---|---|
-| Primer | `~/Desktop/acme/primer` | Knowledge product and fictional Acme evidence corpus; currently separate from the runtime loop. |
+| Primer | `~/Desktop/acme/primer` | Knowledge product and fictional Acme evidence corpus; outside the Issues → Helix runtime loop. |
+| Prelude | `~/Desktop/acme/prelude` | Project inception drafting; may query Primer over HTTP and export Helix bootstrap artifacts. |
 | Helix | `~/Desktop/acme/helix` | Agent workflow control plane that receives work and orchestrates changes. |
 | Acme Issues | `~/Desktop/acme/acme-issues` | Local issue tracker and webhook harness that triggers Helix and receives callbacks. |
+| Acme Projects | `~/Desktop/acme/acme-projects` | Feature-idea and collaboration board for existing Helix repos; can manually create non-triggering issues through Acme Issues. |
 | Acme Todo | `~/Desktop/acme/acme-todo` | Disposable target application used for agent implementation and verification. |
 
-The current local runtime flow is Acme Issues → Helix → Acme Todo, followed by a Helix completion callback to Acme Issues. Primer remains separate while its CLI and web product are built. Later, Acme Issues may be a read-only authoritative source for Primer, and Helix may consume bounded Primer evidence through a stable query boundary.
+Existing-repo runtime flow: Acme Issues → Helix → Acme Todo, followed by a Helix completion callback to Acme Issues. Primer remains outside that path while its CLI and web product are built. Later, Acme Issues may be a read-only authoritative source for Primer, and Helix may consume bounded Primer evidence through a stable query boundary.
+
+Intended feature flow for existing repos begins in Acme Projects, which requests a linked implementation issue from Acme Issues; Acme Issues alone triggers Helix. New-project inception belongs to Prelude, which may query Primer over HTTP and exports bootstrap artifacts for a future Helix bootstrap runtime.
 
 ## Read first
 

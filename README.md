@@ -20,7 +20,7 @@ npm run build
 npm run dev:api:offline
 ```
 
-Open [http://127.0.0.1:4318](http://127.0.0.1:4318), then:
+Open [http://127.0.0.1:8318](http://127.0.0.1:8318), then:
 
 1. Choose an Acme account.
 2. Open **Content**, register `sample-data/acme/sources/markdown` with `markdown-local`, and synchronize it.
@@ -83,7 +83,7 @@ npm run verify
 
 ## Local API and web application
 
-Run the deterministic integrated server at [http://127.0.0.1:4318](http://127.0.0.1:4318):
+Run the deterministic integrated server at [http://127.0.0.1:8318](http://127.0.0.1:8318):
 
 ```bash
 npm run build
@@ -150,16 +150,20 @@ The content UI intentionally lists only local connectors for now. The API and ap
 
 ## Acme development testbed
 
-Primer is one of four related projects used to exercise an inspectable knowledge-to-development workflow. They remain separate products with separate responsibilities.
+Primer is one of six related projects used to exercise an inspectable knowledge-to-development workflow. They remain separate products with separate responsibilities.
 
 | Project | Role |
 |---|---|
-| **[Primer](https://github.com/eimg/primer)** | Knowledge product and fictional Acme evidence corpus; currently separate from the runtime loop. |
+| **[Primer](https://github.com/eimg/primer)** | Knowledge product and fictional Acme evidence corpus; currently outside the Issues → Helix runtime loop. |
+| **[Prelude](https://github.com/eimg/prelude)** | Project inception workspace; may query Primer over HTTP and exports bootstrap artifacts for a future Helix empty-workspace runtime. |
 | **[Helix](https://github.com/eimg/helix)** | Agent workflow control plane that receives work and orchestrates changes. |
 | **[Acme Issues](https://github.com/eimg/acme-issues)** | Local issue tracker and webhook harness that triggers Helix and receives callbacks. |
+| **[Acme Projects](https://github.com/eimg/acme-projects)** | Feature-idea and collaboration board for existing Helix repos; can manually create non-triggering issues through Acme Issues. |
 | **[Acme Todo](https://github.com/eimg/acme-todo)** | Disposable target application used for agent implementation and verification. |
 
-Current development exercise: Acme Issues sends a work item to Helix, and Helix works on Acme Todo. Primer remains separate while its core is built and evaluated.
+Existing-repo exercise: Acme Issues sends a work item to Helix, and Helix works on Acme Todo. Acme Projects can submit a ready card as a thin, non-triggering implementation issue through Acme Issues, which remains the only companion that triggers Helix for that path. Automatic triggering and card lifecycle callbacks remain planned.
+
+New-project path: Prelude drafts inception documents, may pull Primer evidence over HTTP, and exports bootstrap artifacts under its local data directory. A future Helix bootstrap capability will consume those exports. This does not make Primer part of the Issues → Helix runtime path.
 
 The planned relationship is intentionally directional: Acme Issues may later become an authoritative Primer source, while Helix may later query Primer for bounded, authorized internal evidence. Primer will not directly edit Acme Issues or expose its database to Helix. These integrations are planned boundaries, not current behavior and not part of the first CLI or web phases.
 
