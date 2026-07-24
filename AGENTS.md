@@ -17,7 +17,7 @@ This file is an entrypoint, not the full specification.
 
 Existing-repo runtime flow: Acme Issues → Helix → Acme Todo, followed by a Helix completion callback to Acme Issues. Primer remains outside that path while its CLI and web product are built. Later, Acme Issues may be a read-only authoritative source for Primer, and Helix may consume bounded Primer evidence through a stable query boundary.
 
-Intended feature flow for existing repos begins in Acme Projects, which requests a linked implementation issue from Acme Issues; Acme Issues alone triggers Helix. New-project inception belongs to Prelude, which may query Primer over HTTP and exports bootstrap artifacts for a future Helix bootstrap runtime.
+Intended feature flow for existing repos begins in Acme Projects, which requests a linked implementation issue from Acme Issues; Acme Issues alone triggers Helix. New-project inception belongs to Prelude, which may query Primer over HTTP and exports bootstrap artifacts for Helix empty-workspace bootstrap.
 
 ## Read first
 

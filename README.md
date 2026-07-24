@@ -28,7 +28,7 @@ Open [http://127.0.0.1:8318](http://127.0.0.1:8318), then:
 4. Open **Chat** and try “What does CC_IMPORT_017 mean?”
 5. Open its citations or use **Inspect** to review the query plan, retrieval candidates, ranking, timing, and final authorized evidence.
 
-Offline mode is deterministic and requires no provider credentials. To use OpenRouter, copy `.env.example` to `.env`, set `OPENROUTER_API_KEY`, `PRIMER_EMBEDDING_MODEL`, and `PRIMER_CHAT_MODEL`, then run `npm run dev:api` instead. Content synchronized in live mode is embedded with the configured OpenRouter model.
+Offline mode is deterministic and requires no provider credentials. To use OpenRouter, copy `.env.example` to `.env`, set `OPENROUTER_API_KEY`, `PRIMER_EMBEDDING_MODEL`, and `PRIMER_CHAT_MODEL`, then run `npm run dev` (API server) instead. Content synchronized in live mode is embedded with the configured OpenRouter model.
 
 ## Read first
 
@@ -90,13 +90,13 @@ npm run build
 npm run dev:api:offline
 ```
 
-For live provider configuration, use `npm run dev:api`. During UI development, `npm run dev:full:offline` starts the API and Vite development server together. The production build serves `dist/web` from the same Node HTTP process as `/api`.
+For live provider configuration, use `npm run dev` (alias for `dev:api`). During UI development, `npm run dev:full:offline` starts the API and Vite development server together. The production build serves `dist/web` from the same Node HTTP process as `/api`.
 
 The current web milestone provides a local identity chooser, HttpOnly session cookie, effective-group editing, source registration and synchronization, streamed grounded chat, citation-linked evidence provenance, full retrieval-stage inspection, and persisted evaluation reports. Chat uses the active session identity rather than accepting a browser-supplied actor ID. Its NDJSON response reports planning, each retrieval pass, fusion, generation, and citation-validation progress; the blinking indicator names the active stage. It then streams only the finalized validated answer and ends with the complete grounded-answer contract. Switching identity or changing effective access clears browser-held conversation state.
 
 The API exposes health and safe configuration plus account, chat, registration, source, synchronization, trace, and evaluation operations. `POST /api/evaluations` can run retrieval or answer suites; the answer suite invokes the configured chat model in live mode.
 
-Copy `.env.example` to `.env` and fill in the OpenRouter values for live commands. `npm run dev` loads `.env` automatically.
+Copy `.env.example` to `.env` and fill in the OpenRouter values for live commands. `npm run dev` / `npm run dev:cli` load `.env` automatically.
 
 For a complete deterministic offline baseline, with isolated state under `.primer/offline`:
 
@@ -137,9 +137,9 @@ For the live OpenRouter baseline:
 ```bash
 npm run baseline:live
 npm run baseline:answers:live
-npm run dev -- retrieve "What does CC_IMPORT_017 mean?" --user u-maya --project clientcore
-npm run dev -- ask "What does CC_IMPORT_017 mean?" --user u-maya --project clientcore
-npm run dev -- evaluate answers --case rf-eval-008 --case rf-eval-012
+npm run dev:cli -- retrieve "What does CC_IMPORT_017 mean?" --user u-maya --project clientcore
+npm run dev:cli -- ask "What does CC_IMPORT_017 mean?" --user u-maya --project clientcore
+npm run dev:cli -- evaluate answers --case rf-eval-008 --case rf-eval-012
 ```
 
 The baseline scripts retain `sources ingest` as a one-shot fixture convenience. Managed content should use `sources register` and `sources sync`, which can account for removals and preserve synchronization status and history. The live baseline sends accepted synthetic Markdown and Slack thread content to the configured OpenRouter embedding model and persists the returned vectors under `.primer/`. Re-running it with unchanged content, processor version, and embedding model reports sources as `unchanged` and does not re-embed them. Each retrieval still embeds its new query. Live `ask` first asks the configured chat model for at most four search variants, validates and bounds that plan, and safely falls back to the original question if planning fails. The same fixed actor and project scope govern every query; the model cannot select identity, permissions, filters, or evidence. A grounded generation call then receives only the final authorized evidence, constraints, conflicts, question, and answer rules. Deterministic providers retain the original single query for repeatable tests and offline regression baselines; they are not substitutes for recorded live baselines.
@@ -155,7 +155,7 @@ Primer is one of six related projects used to exercise an inspectable knowledge-
 | Project | Role |
 |---|---|
 | **[Primer](https://github.com/eimg/primer)** | Knowledge product and fictional Acme evidence corpus; currently outside the Issues → Helix runtime loop. |
-| **[Prelude](https://github.com/eimg/prelude)** | Project inception workspace; may query Primer over HTTP and exports bootstrap artifacts for a future Helix empty-workspace runtime. |
+| **[Prelude](https://github.com/eimg/prelude)** | Project inception workspace; may query Primer over HTTP and exports bootstrap artifacts for Helix empty-workspace bootstrap. |
 | **[Helix](https://github.com/eimg/helix)** | Agent workflow control plane that receives work and orchestrates changes. |
 | **[Acme Issues](https://github.com/eimg/acme-issues)** | Local issue tracker and webhook harness that triggers Helix and receives callbacks. |
 | **[Acme Projects](https://github.com/eimg/acme-projects)** | Feature-idea and collaboration board for existing Helix repos; can manually create non-triggering issues through Acme Issues. |
@@ -163,7 +163,7 @@ Primer is one of six related projects used to exercise an inspectable knowledge-
 
 Existing-repo exercise: Acme Issues sends a work item to Helix, and Helix works on Acme Todo. Acme Projects can submit a ready card as a thin, non-triggering implementation issue through Acme Issues, which remains the only companion that triggers Helix for that path. Automatic triggering and card lifecycle callbacks remain planned.
 
-New-project path: Prelude drafts inception documents, may pull Primer evidence over HTTP, and exports bootstrap artifacts under its local data directory. A future Helix bootstrap capability will consume those exports. This does not make Primer part of the Issues → Helix runtime path.
+New-project path: Prelude drafts inception documents, may pull Primer evidence over HTTP, and exports bootstrap artifacts under its local data directory. Helix consumes those exports via `helix bootstrap` / Bootstrap UI (materialize shipped; specialist execution next). This does not make Primer part of the Issues → Helix runtime path.
 
 The planned relationship is intentionally directional: Acme Issues may later become an authoritative Primer source, while Helix may later query Primer for bounded, authorized internal evidence. Primer will not directly edit Acme Issues or expose its database to Helix. These integrations are planned boundaries, not current behavior and not part of the first CLI or web phases.
 

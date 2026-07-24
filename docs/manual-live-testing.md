@@ -76,6 +76,7 @@ For the built application on one local origin:
 ```bash
 npm run build
 npm run dev:api
+# or: npm run dev
 ```
 
 Open [http://127.0.0.1:8318](http://127.0.0.1:8318). During UI development only, `npm run dev:full` may be used instead.
