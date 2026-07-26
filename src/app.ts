@@ -121,8 +121,9 @@ export interface PrimerHttpApp {
   close(): void;
 }
 
-function createRouter(services: PrimerServices): Express {
+export function createApp(services: PrimerServices): Express {
   const app = express();
+  app.disable("x-powered-by");
   app.use(express.json({ limit: "1mb" }));
   app.use((request, _response, next) => {
     const parsed: unknown = request.body;
@@ -371,7 +372,7 @@ export async function createPrimerHttpApp(
     throw new Error("Fixture validation failed; run primer validate for details.");
   }
 
-  const server = createServer(createRouter(services));
+  const server = createServer(createApp(services));
   attachHmr(server);
 
   return {

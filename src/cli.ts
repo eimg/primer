@@ -7,7 +7,7 @@ import { createEmbeddingProvider, DeterministicEmbeddingProvider } from "./embed
 import { createAnswerProvider } from "./answers.js";
 import { createQueryPlanner } from "./planner.js";
 import { validateFixture } from "./fixture.js";
-import { createPrimerHttpApp } from "./http.js";
+import { createPrimerHttpApp } from "./app.js";
 import { PrimerServices, type AnswerEvaluationResult, type EvaluationResult, type PrimerDiagnostics, type ReadinessReport } from "./services.js";
 import { DEFAULT_PORT, type GroundedAnswer, type OrchestratorContextPack, type RetrievalTrace, type SyncRun, type ValidationReport } from "./types.js";
 import { webFromSource } from "./webAssets.js";
@@ -70,6 +70,7 @@ Usage:
 Environment:
   PRIMER_DATA_DIR                 Local state directory (default: ./.primer)
   PRIMER_PORT                     Port for primer serve (default: 8318)
+  PORT                            Port for primer serve when PRIMER_PORT is unset
   PRIMER_HOST                     Host for primer serve (default: 127.0.0.1)
   PRIMER_FIXTURE_DIR              Acme fixture root (default: ./sample-data/acme)
   PRIMER_EMBEDDING_PROVIDER       openrouter (default) or deterministic
@@ -671,7 +672,7 @@ async function main(): Promise<void> {
   }
 
   if (command === "serve") {
-    const port = args.port ?? Number(process.env.PRIMER_PORT ?? DEFAULT_PORT);
+    const port = args.port ?? Number(process.env.PRIMER_PORT ?? process.env.PORT ?? DEFAULT_PORT);
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
       throw new Error("PRIMER_PORT must be a valid TCP port.");
     }
