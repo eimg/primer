@@ -1,12 +1,38 @@
 #!/usr/bin/env node
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { PrimerDatabase } from "./database.js";
 import { loadConfig, type PrimerConfig } from "./config.js";
 import { createEmbeddingProvider, DeterministicEmbeddingProvider } from "./embeddings.js";
 import { createAnswerProvider } from "./answers.js";
 import { createQueryPlanner } from "./planner.js";
 import { validateFixture } from "./fixture.js";
+import { createPrimerHttpApp } from "./http.js";
 import { PrimerServices, type AnswerEvaluationResult, type EvaluationResult, type PrimerDiagnostics, type ReadinessReport } from "./services.js";
-import type { GroundedAnswer, OrchestratorContextPack, RetrievalTrace, SyncRun, ValidationReport } from "./types.js";
+import { DEFAULT_PORT, type GroundedAnswer, type OrchestratorContextPack, type RetrievalTrace, type SyncRun, type ValidationReport } from "./types.js";
+import { webFromSource } from "./webAssets.js";
+
+loadEnvFile(resolve(process.cwd(), ".env"));
+
+/** Replaces node --env-file so `primer` behaves the same whether or not a .env exists. */
+function loadEnvFile(path: string): void {
+  if (!existsSync(path)) return;
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith("\"") && value.endsWith("\""))
+      || (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (!(key in process.env)) process.env[key] = value;
+  }
+}
 
 const HELP = `Primer — inspect organizational sources as authorized evidence
 
@@ -39,9 +65,12 @@ Usage:
   primer evaluate [retrieval|answers] [--case <case-id> ...] [--json]
   primer evaluations list [--json]
   primer evaluations show <run-id> [--json]
+  primer serve [--port <n>] [--host <host>]
 
 Environment:
   PRIMER_DATA_DIR                 Local state directory (default: ./.primer)
+  PRIMER_PORT                     Port for primer serve (default: 8318)
+  PRIMER_HOST                     Host for primer serve (default: 127.0.0.1)
   PRIMER_FIXTURE_DIR              Acme fixture root (default: ./sample-data/acme)
   PRIMER_EMBEDDING_PROVIDER       openrouter (default) or deterministic
   PRIMER_EMBEDDING_MODEL          Required OpenRouter embedding model ID
@@ -63,6 +92,8 @@ interface ParsedArgs {
   connectorId?: string;
   includeAnswers: boolean;
   caseIds: string[];
+  port?: number;
+  host?: string;
 }
 
 function parseArguments(args: string[]): ParsedArgs {
@@ -78,7 +109,14 @@ function parseArguments(args: string[]): ParsedArgs {
     else if (arg === "--connector") parsed.connectorId = requiredValue(args, ++index, arg);
     else if (arg === "--include-answers") parsed.includeAnswers = true;
     else if (arg === "--case") parsed.caseIds.push(requiredValue(args, ++index, arg));
-    else if (arg === "--limit") {
+    else if (arg === "--host") parsed.host = requiredValue(args, ++index, arg);
+    else if (arg === "--port") {
+      const value = Number(requiredValue(args, ++index, arg));
+      if (!Number.isInteger(value) || value < 1 || value > 65535) {
+        throw new Error("--port must be a valid TCP port");
+      }
+      parsed.port = value;
+    } else if (arg === "--limit") {
       const value = Number(requiredValue(args, ++index, arg));
       if (!Number.isInteger(value) || value < 1) throw new Error("--limit must be a positive integer");
       parsed.limit = value;
@@ -629,6 +667,30 @@ async function main(): Promise<void> {
     if (!runId) throw new Error("evaluations show requires a run ID");
     const result = await withServices(config, false, (services) => services.getEvaluationRun(runId));
     print(result, args.json, () => JSON.stringify(result, null, 2));
+    return;
+  }
+
+  if (command === "serve") {
+    const port = args.port ?? Number(process.env.PRIMER_PORT ?? DEFAULT_PORT);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new Error("PRIMER_PORT must be a valid TCP port.");
+    }
+    const host = args.host ?? process.env.PRIMER_HOST ?? "127.0.0.1";
+    const app = await createPrimerHttpApp(config);
+    await new Promise<void>((resolvePromise, reject) => {
+      app.server.once("error", reject);
+      app.server.listen(port, host, () => {
+        process.stdout.write(
+          `Primer running at http://${host}:${port}${webFromSource() ? "  (web from source)" : ""}\n`,
+        );
+      });
+      const stop = (): void => {
+        app.server.close(() => resolvePromise());
+      };
+      process.once("SIGINT", stop);
+      process.once("SIGTERM", stop);
+    });
+    app.close();
     return;
   }
 

@@ -75,11 +75,10 @@ For the built application on one local origin:
 
 ```bash
 npm run build
-npm run dev:api
-# or: npm run dev
+npm start
 ```
 
-Open [http://127.0.0.1:8318](http://127.0.0.1:8318). During UI development only, `npm run dev:full` may be used instead.
+Open [http://127.0.0.1:8318](http://127.0.0.1:8318). During UI development, `npm run dev` serves the same origin from source with HMR.
 
 Verify desktop and narrow responsive layouts with the browser console open. There should be no uncaught errors, credential exposure, or broken requests.
 

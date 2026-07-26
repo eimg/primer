@@ -9,6 +9,7 @@ export const MARKDOWN_PROCESSOR_VERSION = "markdown-v1";
 export const SLACK_PROCESSOR_VERSION = "slack-thread-v1";
 export const PROCESSOR_VERSION = MARKDOWN_PROCESSOR_VERSION;
 export const POLICY_VERSION = "index-v1";
+export const DEFAULT_PORT = 8318;
 
 export type SourceFamily = string;
 

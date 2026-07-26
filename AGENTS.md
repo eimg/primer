@@ -61,9 +61,9 @@ Intended feature flow for existing repos begins in Acme Projects, which requests
 ## Current implementation map
 
 ```text
-src/cli.ts          CLI adapter and stable JSON surfaces
-src/http.ts         local HTTP API, HttpOnly sessions, and production web serving
-src/server.ts       API/web process entrypoint and graceful shutdown
+src/cli.ts          CLI adapter, stable JSON surfaces, and the serve entrypoint
+src/http.ts         Express app: HTTP API, HttpOnly sessions, and web delivery
+src/webAssets.ts    Vite middleware in dev, built dist/web in production
 src/services.ts     application use cases, retrieval, fusion, evidence, evaluation
 src/database.ts     SQLite schema, record writer, FTS, traces, evaluation runs
 src/connectors/     independent acquisition contracts, registry, local connectors,

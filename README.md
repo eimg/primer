@@ -16,8 +16,7 @@ Run the complete web application with deterministic local models:
 
 ```bash
 npm install
-npm run build
-npm run dev:api:offline
+npm run dev:offline:serve
 ```
 
 Open [http://127.0.0.1:8318](http://127.0.0.1:8318), then:
@@ -28,7 +27,7 @@ Open [http://127.0.0.1:8318](http://127.0.0.1:8318), then:
 4. Open **Chat** and try “What does CC_IMPORT_017 mean?”
 5. Open its citations or use **Inspect** to review the query plan, retrieval candidates, ranking, timing, and final authorized evidence.
 
-Offline mode is deterministic and requires no provider credentials. To use OpenRouter, copy `.env.example` to `.env`, set `OPENROUTER_API_KEY`, `PRIMER_EMBEDDING_MODEL`, and `PRIMER_CHAT_MODEL`, then run `npm run dev` (API server) instead. Content synchronized in live mode is embedded with the configured OpenRouter model.
+Offline mode is deterministic and requires no provider credentials. To use OpenRouter, copy `.env.example` to `.env`, set `OPENROUTER_API_KEY`, `PRIMER_EMBEDDING_MODEL`, and `PRIMER_CHAT_MODEL`, then run `npm run dev` instead. Content synchronized in live mode is embedded with the configured OpenRouter model.
 
 ## Read first
 
@@ -83,20 +82,19 @@ npm run verify
 
 ## Local API and web application
 
-Run the deterministic integrated server at [http://127.0.0.1:8318](http://127.0.0.1:8318):
+Run the deterministic server at [http://127.0.0.1:8318](http://127.0.0.1:8318):
 
 ```bash
-npm run build
-npm run dev:api:offline
+npm run dev:offline:serve
 ```
 
-For live provider configuration, use `npm run dev` (alias for `dev:api`). During UI development, `npm run dev:full:offline` starts the API and Vite development server together. The production build serves `dist/web` from the same Node HTTP process as `/api`.
+`npm run dev` is the same thing with live provider configuration. Both run one process on one port: `primer serve` mounts Vite as middleware, so the browser gets HMR from `web/` and the server restarts on `src/` changes, with no build step in between. `npm start` runs the built server, which serves `dist/web` from that same process.
 
 The current web milestone provides a local identity chooser, HttpOnly session cookie, effective-group editing, source registration and synchronization, streamed grounded chat, citation-linked evidence provenance, full retrieval-stage inspection, and persisted evaluation reports. Chat uses the active session identity rather than accepting a browser-supplied actor ID. Its NDJSON response reports planning, each retrieval pass, fusion, generation, and citation-validation progress; the blinking indicator names the active stage. It then streams only the finalized validated answer and ends with the complete grounded-answer contract. Switching identity or changing effective access clears browser-held conversation state.
 
 The API exposes health and safe configuration plus account, chat, registration, source, synchronization, trace, and evaluation operations. `POST /api/evaluations` can run retrieval or answer suites; the answer suite invokes the configured chat model in live mode.
 
-Copy `.env.example` to `.env` and fill in the OpenRouter values for live commands. `npm run dev` / `npm run dev:cli` load `.env` automatically.
+Copy `.env.example` to `.env` and fill in the OpenRouter values for live commands. Every `primer` command loads `.env` when it is present, without overriding variables already set in the environment.
 
 For a complete deterministic offline baseline, with isolated state under `.primer/offline`:
 

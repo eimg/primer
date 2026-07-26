@@ -9,10 +9,7 @@ import { createTestServices, fixtureDir } from "./helpers.js";
 
 test("HTTP API runs independently and reuses account and content application services", async () => {
   const context = await createTestServices();
-  const app = await createPrimerHttpApp(context.services.config, {
-    services: context.services,
-    webRoot: join(context.directory, "missing-web-build"),
-  });
+  const app = await createPrimerHttpApp(context.services.config, { services: context.services });
   await new Promise<void>((resolve, reject) => {
     app.server.once("error", reject);
     app.server.listen(0, "127.0.0.1", resolve);
@@ -145,10 +142,7 @@ test("HTTP API runs independently and reuses account and content application ser
 test("streamed chat uses the active account and keeps traces account-scoped", async () => {
   const context = await createTestServices(new DeterministicAnswerProvider());
   await context.services.ingest();
-  const app = await createPrimerHttpApp(context.services.config, {
-    services: context.services,
-    webRoot: join(context.directory, "missing-web-build"),
-  });
+  const app = await createPrimerHttpApp(context.services.config, { services: context.services });
   await new Promise<void>((resolve, reject) => {
     app.server.once("error", reject);
     app.server.listen(0, "127.0.0.1", resolve);

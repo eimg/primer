@@ -33,7 +33,7 @@ src/cli.ts
      -> src/ranking.ts / src/context.ts / src/answers.ts
   -> SQLite database under PRIMER_DATA_DIR
 
-src/server.ts -> src/http.ts -> the same src/services.ts
+src/cli.ts serve -> src/http.ts -> the same src/services.ts
 React/Vite web application -> /api only -> src/http.ts
 ```
 
