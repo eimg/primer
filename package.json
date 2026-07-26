@@ -6,8 +6,25 @@
   "description": "Inspect organizational sources as authorized evidence and cited answers",
   "license": "MIT",
   "author": "Ei Maung",
+  "keywords": [
+    "knowledge",
+    "evidence",
+    "retrieval",
+    "citations",
+    "openrouter",
+    "primer",
+    "experimental"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eimg/primer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eimg/primer/issues"
+  },
+  "homepage": "https://github.com/eimg/primer#readme",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19"
   },
   "bin": {
     "primer": "./dist/cli.js"
@@ -18,6 +35,7 @@
     "scripts",
     "README.md",
     "AGENTS.md",
+    "LICENSE",
     "docs"
   ],
   "scripts": {
@@ -39,9 +57,13 @@
     "readiness:offline": "npm run dev:readiness:offline -- init && npm run dev:readiness:offline -- sources register sample-data/acme/sources/markdown --connector markdown-local && npm run dev:readiness:offline -- sources register sample-data/acme/sources/slack --connector slack-export && npm run dev:readiness:offline -- sources sync && npm run dev:readiness:offline -- readiness check --include-answers",
     "readiness:live:retrieval": "npm run dev:readiness:live -- init && npm run dev:readiness:live -- sources register sample-data/acme/sources/markdown --connector markdown-local && npm run dev:readiness:live -- sources register sample-data/acme/sources/slack --connector slack-export && npm run dev:readiness:live -- sources sync && npm run dev:readiness:live -- readiness check",
     "readiness:live": "npm run dev:readiness:live -- init && npm run dev:readiness:live -- sources register sample-data/acme/sources/markdown --connector markdown-local && npm run dev:readiness:live -- sources register sample-data/acme/sources/slack --connector slack-export && npm run dev:readiness:live -- sources sync && npm run dev:readiness:live -- readiness check --include-answers",
+    "fixtures:restore": "./scripts/restore-git-fixtures.sh",
+    "pretest": "npm run fixtures:restore",
     "test": "node --test --import tsx test/*.test.ts",
-    "typecheck": "tsc --noEmit && tsc -p web/tsconfig.json",
+    "typecheck:web": "tsc -p web/tsconfig.json",
+    "typecheck": "tsc --noEmit && npm run typecheck:web",
     "verify": "npm run typecheck && npm test && npm run build",
+    "prepack": "npm run build",
     "audit": "npm audit"
   },
   "dependencies": {
