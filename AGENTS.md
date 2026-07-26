@@ -83,4 +83,6 @@ Use `node --import tsx` rather than the `tsx` executable when the environment fo
 
 ## Shared Acme stack
 
-Primer runs the same foundation as Helix, Prelude, Acme Projects, and Acme Issues: Node.js 20.19+ with TypeScript and ESM, Express 5 hosting a React 19/Vite 8 UI, `better-sqlite3` with WAL and foreign keys, and `node:test` through `tsx`. Each project exposes `<name> serve` from its CLI, serves the UI from source under `<NAME>_DEV=1` through Vite middleware, and builds to `dist/web`. Keep `src/app.ts`, `src/webAssets.ts`, `typecheck`, `verify`, and the `83xx` port assignment (Primer is 8318) consistent with those projects; raise stack changes across the set rather than diverging here.
+Primer runs the same foundation as Helix, Prelude, Acme Projects, and Acme Issues: Node.js with TypeScript and ESM, Express 5 hosting a React 19/Vite 8 UI, `better-sqlite3` with WAL and foreign keys, and `node:test` through `tsx`. Each project exposes `<name> serve` from its CLI, serves the UI from source under `<NAME>_DEV=1` through Vite middleware, and builds to `dist/web`. Keep `src/app.ts`, `src/webAssets.ts`, `typecheck`, `verify`, and the `83xx` port assignment (Primer is 8318) consistent with those projects; raise stack changes across the set rather than diverging here.
+
+Primer, Prelude, Acme Projects, and Acme Issues require Node.js 20.19+. Helix requires 22.19+ because the Pi SDK does, so the set has no single floor yet; do not assume Node 22 features here until that is settled across the projects.
