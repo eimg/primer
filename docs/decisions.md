@@ -148,11 +148,13 @@
 
 **Consequence:** No current connector API, phase gate, or implementation priority changes. Future native exploration must enter through an explicit connector capability and cannot bypass authorization, normalization, provenance, evidence construction, or tracing. Indexing remains valuable for cross-source retrieval, repeatability, latency, historical inspection, and sources with weak native search; it is not declared a permanent requirement for every future source.
 
-### D-024 — Use a built-in Node HTTP adapter and React/Vite web client
+### D-024 — Use Express with a React/Vite web client — revised from Node HTTP
 
-**Decision:** Implement the local API with Node's HTTP server over `PrimerServices`, serve the production web bundle from the same process, and use React with Vite for the browser client. Local fixture identity selection creates an opaque SQLite-backed session in an `HttpOnly`, `SameSite=Lax` cookie. The browser communicates only with same-origin `/api` routes.
+**Decision:** Implement the local API as an Express app over `PrimerServices`, serve the production web bundle from the same process, and use React with Vite for the browser client. Local fixture identity selection creates an opaque SQLite-backed session in an `HttpOnly`, `SameSite=Lax` cookie. The browser communicates only with same-origin `/api` routes.
 
-**Consequence:** Phase 5 adds no web framework or second domain implementation. The API remains independently testable, provider credentials stay server-side, and development can run Vite through an API proxy while production uses one local process. The fixture session proves account-dependent behavior but is not represented as production authentication or external identity federation.
+**Consequence:** The API remains independently testable, provider credentials stay server-side, and one local process serves both `/api` and the UI. In development, Vite mounts as Express middleware on that same port (HMR included); in production the process serves `dist/web`. The fixture session proves account-dependent behavior but is not represented as production authentication or external identity federation.
+
+**Revision:** Phase 5 originally used Node's built-in HTTP server with no framework. Primer later adopted Express so it shares the same HTTP host, `src/app.ts` / `src/webAssets.ts` shape, and one-process source-served dev loop as Helix, Prelude, Acme Projects, and Acme Issues.
 
 ### D-025 — Stream only finalized grounded answers to the web client
 

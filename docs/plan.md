@@ -116,7 +116,7 @@ Exit evidence:
 
 ## Phase 5: local HTTP API and web operations
 
-**Status:** Complete. The Node HTTP adapter is independently integration-tested over real application services and SQLite state. It provides health/safe configuration, local session, account/group, connector/registration, content lifecycle, synchronization, trace, and evaluation list/detail operations. The React/Vite application consumes only that API for identity selection, effective access editing, content registration/synchronization, activity, and derived-index inspection. Desktop and responsive browser journeys were verified with no console warnings or errors.
+**Status:** Complete. The Express HTTP adapter is independently integration-tested over real application services and SQLite state. It provides health/safe configuration, local session, account/group, connector/registration, content lifecycle, synchronization, trace, and evaluation list/detail operations. The React/Vite application consumes only that API for identity selection, effective access editing, content registration/synchronization, activity, and derived-index inspection. Desktop and responsive browser journeys were verified with no console warnings or errors. Dev now serves the UI from source through Vite middleware on the same process and port as `/api`.
 
 First expose the existing application services through a working local HTTP API and verify it independently. Then add a React application with local accounts/sessions and content operations before chat presentation. The browser must use the API for all application behavior and must never read SQLite or provider credentials directly.
 
