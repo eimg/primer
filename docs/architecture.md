@@ -1,6 +1,6 @@
 # Primer conceptual architecture
 
-**Status:** Phase 7 and the scoped Level 2 query-planning enhancement are complete; development is paused for manual live testing. The CLI and built-in Node HTTP adapters share the application services, SQLite index, connector/processor registry, registered-source lifecycle, retrieval, answer, trace, evaluation, diagnostics, backup, and readiness modules. `primer.connector.v1` supports local and HTTP acquisition through the same synchronization workflow. The React/Vite application consumes the HTTP API for account/content operations, grounded chat, evidence navigation, retrieval inspection, and evaluation reporting. Live connectors, an optional Pi simulation, and ecosystem integrations remain later. Components are logical ownership boundaries, not separate services.
+**Status:** Phase 7 and the scoped Level 2 query-planning enhancement are complete; development is paused for manual live testing. The CLI and Express HTTP adapters share the application services, SQLite index, connector/processor registry, registered-source lifecycle, retrieval, answer, trace, evaluation, diagnostics, backup, and readiness modules. `primer.connector.v1` supports local and HTTP acquisition through the same synchronization workflow. The React/Vite application consumes the HTTP API for account/content operations, grounded chat, evidence navigation, retrieval inspection, and evaluation reporting. Live connectors, an optional Pi simulation, and ecosystem integrations remain later. Components are logical ownership boundaries, not separate services.
 
 ## Delivery shape
 
@@ -33,8 +33,8 @@ src/cli.ts
      -> src/ranking.ts / src/context.ts / src/answers.ts
   -> SQLite database under PRIMER_DATA_DIR
 
-src/cli.ts serve -> src/http.ts -> the same src/services.ts
-React/Vite web application -> /api only -> src/http.ts
+src/cli.ts serve -> src/app.ts -> the same src/services.ts
+React/Vite web application -> /api only -> src/app.ts
 ```
 
 Markdown and Slack export source processing are implemented as local reference providers. Four vendor-neutral HTTP providers accept canonical `document`, `conversation`, `business-record`, and `event` artifacts from future independently deployed connectors. Source-code bodies are deliberately outside the Primer index. Grounded answers, initial-context packs, complete synchronization/removal, the HTTP API, and React account/content/chat/inspection/evaluation operations are implemented; the optional Pi simulation and live integrations remain phase-gated.
@@ -145,7 +145,7 @@ Coordinates explicit use cases such as registering a source, synchronizing conte
 ### Delivery adapters
 
 - The CLI maps arguments, environment, exit status, human output, and stable JSON to application services.
-- The built-in Node HTTP API maps local session-authenticated requests to the same services, serves the production web build, and is independently runnable and integration-tested.
+- The Express HTTP API maps local session-authenticated requests to the same services, serves the production web build, and is independently runnable and integration-tested.
 - The React UI consumes that API for account/content operations, grounded chat, traces, synchronization detail, and evaluation presentation; it never accesses SQLite directly.
 
 The chat route derives actor identity exclusively from the HttpOnly session. It uses newline-delimited JSON to send immediate workflow status, then answer deltas only after the existing bounded citation-validation/repair workflow has produced its final result, followed by the complete versioned answer object. This preserves the invariant that the stable displayed answer and displayed evidence are the validated application-service output; it intentionally does not expose provisional provider tokens that may later fail citation validation.
@@ -360,7 +360,8 @@ The first integration-compatible boundary is a versioned JSON initial-context pa
 
 ## Technology decisions settled
 
-- TypeScript on Node.js in one locally runnable application;
+- TypeScript on Node.js 20.19+ in one locally runnable application;
+- Express as the HTTP host, matching the sibling Acme projects so one stack is maintained across them;
 - CLI before HTTP API and React UI;
 - SQLite full-text search plus an abstract exhaustive vector baseline;
 - OpenRouter for embeddings through its official TypeScript SDK, and for grounded chat through Vercel AI SDK, with streaming deferred;

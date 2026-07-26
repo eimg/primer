@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { test } from "node:test";
-import { createPrimerHttpApp } from "../src/http.js";
+import { createPrimerHttpApp } from "../src/app.js";
 import { DeterministicAnswerProvider } from "../src/answers.js";
 import type { GroundedAnswer } from "../src/types.js";
 import { createTestServices, fixtureDir } from "./helpers.js";
@@ -20,6 +20,7 @@ test("HTTP API runs independently and reuses account and content application ser
   try {
     const health = await fetch(`${baseUrl}/api/health`);
     assert.equal(health.status, 200);
+    assert.equal(health.headers.get("x-powered-by"), null);
     assert.equal((await health.json() as { status: string }).status, "ok");
 
     const anonymousSources = await fetch(`${baseUrl}/api/sources`);

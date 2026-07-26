@@ -62,7 +62,7 @@ Intended feature flow for existing repos begins in Acme Projects, which requests
 
 ```text
 src/cli.ts          CLI adapter, stable JSON surfaces, and the serve entrypoint
-src/http.ts         Express app: HTTP API, HttpOnly sessions, and web delivery
+src/app.ts          Express app: HTTP API, HttpOnly sessions, and web delivery
 src/webAssets.ts    Vite middleware in dev, built dist/web in production
 src/services.ts     application use cases, retrieval, fusion, evidence, evaluation
 src/database.ts     SQLite schema, record writer, FTS, traces, evaluation runs
@@ -79,4 +79,8 @@ web/                React/Vite account and content operations consuming only the
 test/               fixture, connector, lifecycle, HTTP, retrieval, authorization, evaluation, CLI tests
 ```
 
-Use `node --import tsx` rather than the `tsx` executable when the environment forbids tsx's IPC listener. Normal verification is `npm run typecheck`, `npm test`, and `npm run build`.
+Use `node --import tsx` rather than the `tsx` executable when the environment forbids tsx's IPC listener. Normal verification is `npm run verify` (`typecheck`, `test`, `build`). A fresh clone needs the nested fixture repositories; `npm test` restores them first through `npm run fixtures:restore`.
+
+## Shared Acme stack
+
+Primer runs the same foundation as Helix, Prelude, Acme Projects, and Acme Issues: Node.js 20.19+ with TypeScript and ESM, Express 5 hosting a React 19/Vite 8 UI, `better-sqlite3` with WAL and foreign keys, and `node:test` through `tsx`. Each project exposes `<name> serve` from its CLI, serves the UI from source under `<NAME>_DEV=1` through Vite middleware, and builds to `dist/web`. Keep `src/app.ts`, `src/webAssets.ts`, `typecheck`, `verify`, and the `83xx` port assignment (Primer is 8318) consistent with those projects; raise stack changes across the set rather than diverging here.
