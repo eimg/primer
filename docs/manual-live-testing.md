@@ -78,7 +78,7 @@ npm run build
 npm start
 ```
 
-Open [http://127.0.0.1:8318](http://127.0.0.1:8318). During UI development, `npm run dev` serves the same origin from source with HMR.
+Open [http://127.0.0.1:8317](http://127.0.0.1:8317). During UI development, `npm run dev` serves the same origin from source with HMR.
 
 Verify desktop and narrow responsive layouts with the browser console open. There should be no uncaught errors, credential exposure, or broken requests.
 
@@ -120,6 +120,11 @@ Do not edit the packaged fixture for this journey. Copy one Markdown source into
 
 Change Maya's effective groups, verify the expected evidence difference, then restore the original groups. Sign out and confirm operational API routes require a new session. Browser requests must not carry an actor ID that overrides the active server session.
 
+For the optional Acme Identity adapter, sign in with Maya's seeded Identity
+account and confirm Primer maps the external subject to Maya's existing actor.
+An Identity admin without a Primer actor may manage Primer but must not gain
+chat, evidence, or trace access until an actor mapping exists.
+
 ### Inspection and evaluation
 
 Open saved retrieval traces and both persisted evaluation types. Confirm that the web values match their CLI/API run, model, timing, and evidence details rather than being recalculated in the browser.
@@ -129,13 +134,13 @@ Open saved retrieval traces and both persisted evaluation types. Confirm that th
 Use a local cookie jar rather than copying the cookie into notes:
 
 ```bash
-curl -sS http://127.0.0.1:8318/api/health
-curl -sS http://127.0.0.1:8318/api/config
+curl -sS http://127.0.0.1:8317/api/health
+curl -sS http://127.0.0.1:8317/api/config
 curl -sS -c /tmp/primer-cookie.txt \
   -H 'content-type: application/json' \
   -d '{"userId":"u-maya"}' \
-  http://127.0.0.1:8318/api/session
-curl -sS -b /tmp/primer-cookie.txt http://127.0.0.1:8318/api/sources
+  http://127.0.0.1:8317/api/session
+curl -sS -b /tmp/primer-cookie.txt http://127.0.0.1:8317/api/sources
 ```
 
 Confirm that an operational route without the cookie returns a categorized authorization error, invalid JSON returns a categorized request error, and `/api/config` contains no API key.

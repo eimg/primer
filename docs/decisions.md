@@ -188,6 +188,12 @@ The contract carries stable external identity and revision, provenance, raw cont
 
 **Consequence:** Chat gains immediate recall value and inspectable multi-step behavior without MCP, tool calling, or an agent loop. `primer.retrieval.v4` records the plan and each query run, while NDJSON status events make planning, numbered retrieval, fusion, generation, and validation visible. Live answers incur one additional planning model call; planner failure degrades safely to previous behavior. Any future tool-exposed search remains a separate decision with its own authentication and model-control boundary.
 
+### D-030 — Separate suite authentication from knowledge authorization
+
+**Decision:** Keep standalone fixture sessions as Primer's default and add Acme Identity as an optional plain-HTTP HTTP-host adapter. Identity principals and permissions decide who may invoke Primer operations. `primer.manage` may operate without a knowledge actor, so suite administrators can administer Primer without being granted document access. Chat and actor-scoped traces require Primer to persist or resolve a stable principal-to-existing-actor mapping, and only that actor's Primer groups and record ACLs decide which evidence may enter retrieval. Seeded local Identity accounts match existing fixture actors by exact unique email; unmapped identities fail closed for knowledge operations. Prelude delegates the authenticated caller's cookie or bearer credential when querying Primer instead of selecting an actor.
+
+**Consequence:** Primer remains independently runnable and imports no sibling auth package. Identity roles cannot grant knowledge by accident, API callers cannot choose arbitrary human actors, and existing fixture knowledge memberships survive the migration. Source-derived ACL reconciliation remains separate future connector work; current fixture ACL and group assignment is local/manual and must not be presented as live Slack or email authorization.
+
 ## Resolved product questions
 
 ### Q-002 — Who is the primary user? — Resolved by D-012 and D-018

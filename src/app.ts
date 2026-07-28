@@ -14,12 +14,27 @@ import { createEmbeddingProvider } from "./embeddings.js";
 import { createQueryPlanner } from "./planner.js";
 import { PrimerServices } from "./services.js";
 import { attachHmr, webAssets, webIndex } from "./webAssets.js";
+import {
+  PrimerAuthError,
+  authRequest,
+  createAuthAdapterFromEnv,
+  hasPermission,
+  resolvePrimerActor,
+  sendSessionResult,
+  type PrimerAuthAdapter,
+  type PrimerPrincipal,
+} from "./auth.js";
 
 const SESSION_COOKIE = "primer_session";
 
 type ErrorCategory = "request" | "configuration" | "source-processing" | "authorization" | "provider" | "evaluation" | "not-found" | "internal";
 
-type ActiveSession = NonNullable<ReturnType<PrimerServices["getLocalSession"]>>;
+type ActiveAccess = {
+  user?: ReturnType<PrimerServices["getUser"]>;
+  principal: PrimerPrincipal;
+  provider: PrimerAuthAdapter["provider"];
+  session?: NonNullable<ReturnType<PrimerServices["getLocalSession"]>>["session"];
+};
 
 function body(request: Request): Record<string, unknown> {
   return (request.body ?? {}) as Record<string, unknown>;
@@ -39,8 +54,14 @@ function cookies(request: Request): Map<string, string> {
 }
 
 /** Set by requireSession, so every route below it can read the caller without re-checking. */
-function active(response: Response): ActiveSession {
-  return response.locals.active as ActiveSession;
+function active(response: Response): ActiveAccess {
+  return response.locals.active as ActiveAccess;
+}
+
+function actor(response: Response): ReturnType<PrimerServices["getUser"]> {
+  const user = active(response).user;
+  if (!user) throw new PrimerAuthError("Authenticated principal has no Primer knowledge actor mapping", "unmapped");
+  return user;
 }
 
 function requiredString(value: unknown, field: string): string {
@@ -121,7 +142,10 @@ export interface PrimerHttpApp {
   close(): void;
 }
 
-export function createApp(services: PrimerServices): Express {
+export function createApp(
+  services: PrimerServices,
+  authAdapter: PrimerAuthAdapter = createAuthAdapterFromEnv(),
+): Express {
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "1mb" }));
@@ -145,50 +169,150 @@ export function createApp(services: PrimerServices): Express {
   });
 
   app.get("/api/config", (_request, response) => {
-    response.json(services.configuration());
+    response.json({ ...services.configuration(), authProvider: authAdapter.provider });
   });
 
-  app.get("/api/accounts", async (_request, response) => {
+  app.post("/api/session", async (request, response, next) => {
+    try {
+      if (authAdapter.provider === "standalone") {
+        const result = services.createLocalSession(requiredString(body(request).userId, "userId"));
+        const { id, ...session } = result.session;
+        response
+          .status(201)
+          .set("set-cookie", `${SESSION_COOKIE}=${encodeURIComponent(id)}; HttpOnly; SameSite=Lax; Path=/`)
+          .json({ schemaVersion: "primer.session.v1", provider: authAdapter.provider, session, user: result.user });
+        return;
+      }
+      if (!authAdapter.signIn) throw new PrimerAuthError("Interactive sign-in is unavailable", "config");
+      sendSessionResult(response, await authAdapter.signIn(request.body, authRequest(request)));
+    } catch (cause) {
+      next(cause);
+    }
+  });
+
+  app.delete("/api/session", async (request, response, next) => {
+    try {
+      if (authAdapter.provider === "standalone") {
+        const sessionId = cookies(request).get(SESSION_COOKIE);
+        if (sessionId) services.deleteLocalSession(sessionId);
+        response
+          .set("set-cookie", `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`)
+          .json({ schemaVersion: "primer.session.v1", provider: authAdapter.provider, signedOut: true });
+        return;
+      }
+      if (!authAdapter.signOut) throw new PrimerAuthError("Interactive sign-out is unavailable", "config");
+      sendSessionResult(response, await authAdapter.signOut(authRequest(request)));
+    } catch (cause) {
+      next(cause);
+    }
+  });
+
+  if (authAdapter.provider === "standalone") {
+    app.get("/api/accounts", async (_request, response) => {
+      response.json({
+        schemaVersion: "primer.accounts.v1",
+        users: services.listUsers(),
+        groups: services.listGroups(),
+        projects: await services.listProjects(),
+        canManage: true,
+      });
+    });
+  }
+
+  const requireAccess: RequestHandler = async (request, response, next) => {
+    try {
+      if (authAdapter.provider === "standalone") {
+        const sessionId = cookies(request).get(SESSION_COOKIE);
+        const session = sessionId ? services.getLocalSession(sessionId) : undefined;
+        if (!session) throw new PrimerAuthError("An active local session is required.", "unauthenticated");
+        response.locals.active = {
+          user: session.user,
+          session: session.session,
+          provider: authAdapter.provider,
+          principal: {
+            id: `standalone:${session.user.id}`,
+            issuer: "primer",
+            username: session.user.id,
+            displayName: session.user.name,
+            email: session.user.email,
+            roles: ["admin"],
+            permissions: ["*"],
+            kind: "development",
+          },
+        } satisfies ActiveAccess;
+      } else {
+        const principal = await authAdapter.resolve!(authRequest(request));
+        let user: ReturnType<PrimerServices["getUser"]> | undefined;
+        try {
+          user = resolvePrimerActor(principal, services);
+        } catch (cause) {
+          if (!(cause instanceof PrimerAuthError) || cause.code !== "unmapped") throw cause;
+        }
+        response.locals.active = {
+          ...(user ? { user } : {}),
+          principal,
+          provider: authAdapter.provider,
+        } satisfies ActiveAccess;
+      }
+      next();
+    } catch (cause) {
+      next(cause);
+    }
+  };
+  app.use("/api", requireAccess);
+
+  app.get("/api/session", (_request, response) => {
+    const access = active(response);
+    const session = access.session ? (({ id: _id, ...rest }) => rest)(access.session) : undefined;
     response.json({
-      schemaVersion: "primer.accounts.v1",
-      users: services.listUsers(),
-      groups: services.listGroups(),
-      projects: await services.listProjects(),
+      schemaVersion: "primer.session.v1",
+      provider: access.provider,
+      ...(session ? { session } : {}),
+      ...(access.user ? { user: access.user } : {}),
+      principal: access.principal,
+      canManage: hasPermission(access.principal, "primer.manage"),
+      canAsk: hasPermission(access.principal, "primer.ask") && Boolean(access.user),
     });
   });
 
-  app.post("/api/session", (request, response) => {
-    const result = services.createLocalSession(requiredString(body(request).userId, "userId"));
-    const { id, ...session } = result.session;
-    response
-      .status(201)
-      .set("set-cookie", `${SESSION_COOKIE}=${encodeURIComponent(id)}; HttpOnly; SameSite=Lax; Path=/`)
-      .json({ schemaVersion: "primer.session.v1", session, user: result.user });
-  });
+  if (authAdapter.provider !== "standalone") {
+    app.get("/api/accounts", async (_request, response) => {
+      const access = active(response);
+      const canManage = hasPermission(access.principal, "primer.manage");
+      if (!canManage && !access.user) {
+        throw new PrimerAuthError("Authenticated principal has no Primer knowledge actor mapping", "unmapped");
+      }
+      response.json({
+        schemaVersion: "primer.accounts.v1",
+        users: canManage ? services.listUsers() : [access.user!],
+        groups: canManage
+          ? services.listGroups()
+          : services.listGroups().filter((group) => access.user!.groupIds.includes(group.id)),
+        projects: await services.listProjects(),
+        canManage,
+      });
+    });
+  }
 
-  app.delete("/api/session", (request, response) => {
-    const sessionId = cookies(request).get(SESSION_COOKIE);
-    if (sessionId) services.deleteLocalSession(sessionId);
-    response
-      .set("set-cookie", `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`)
-      .json({ schemaVersion: "primer.session.v1", signedOut: true });
-  });
-
-  const requireSession: RequestHandler = (request, response, next) => {
-    const sessionId = cookies(request).get(SESSION_COOKIE);
-    const session = sessionId ? services.getLocalSession(sessionId) : undefined;
-    if (!session) {
-      next(new Error("An active local session is required."));
+  app.use("/api", (request, response, next) => {
+    const permission = request.path === "/chat" || request.path === "/traces" || request.path.startsWith("/traces/")
+      ? "primer.ask"
+      : "primer.manage";
+    if (!hasPermission(active(response).principal, permission)) {
+      response.status(403).json({
+        schemaVersion: "primer.error.v1",
+        error: { category: "authorization", message: `Missing permission: ${permission}` },
+      });
       return;
     }
-    response.locals.active = session;
+    if (permission === "primer.ask" && !active(response).user) {
+      response.status(403).json({
+        schemaVersion: "primer.error.v1",
+        error: { category: "authorization", message: "A Primer knowledge actor mapping is required" },
+      });
+      return;
+    }
     next();
-  };
-  app.use("/api", requireSession);
-
-  app.get("/api/session", (_request, response) => {
-    const { id: _id, ...session } = active(response).session;
-    response.json({ schemaVersion: "primer.session.v1", session, user: active(response).user });
   });
 
   app.post("/api/chat", async (request, response) => {
@@ -202,7 +326,7 @@ export function createApp(services: PrimerServices): Express {
       const answer = await services.ask(
         {
           question: requiredString(body(request).question, "question"),
-          userId: active(response).user.id,
+          userId: actor(response).id,
           ...(projectId ? { projectId } : {}),
           limit: evidenceLimit(body(request).limit),
         },
@@ -296,13 +420,13 @@ export function createApp(services: PrimerServices): Express {
   app.get("/api/traces", (_request, response) => {
     response.json({
       schemaVersion: "primer.traces.v1",
-      traces: services.listTraces().filter((trace) => trace.userId === active(response).user.id),
+      traces: services.listTraces().filter((trace) => trace.userId === actor(response).id),
     });
   });
 
   app.get("/api/traces/:id", (request, response) => {
     const trace = services.getTrace(request.params.id);
-    if (trace.userId !== active(response).user.id) {
+    if (trace.userId !== actor(response).id) {
       throw new Error("The active local session cannot access this trace.");
     }
     response.json({ schemaVersion: "primer.trace.v1", trace });
@@ -342,6 +466,15 @@ export function createApp(services: PrimerServices): Express {
 
   app.use((cause: unknown, request: Request, response: Response, _next: NextFunction) => {
     const message = bodyErrorMessage(cause) ?? (cause instanceof Error ? cause.message : String(cause));
+    if (cause instanceof PrimerAuthError) {
+      const status = cause.code === "unauthenticated" ? 401
+        : cause.code === "unmapped" ? 403
+          : cause.code === "unavailable" ? 503 : 500;
+      const category: ErrorCategory = cause.code === "unavailable" ? "provider"
+        : cause.code === "config" ? "configuration" : "authorization";
+      response.status(status).json({ schemaVersion: "primer.error.v1", error: { category, message } });
+      return;
+    }
     const category = errorCategory(request.path, message);
     if (response.headersSent) {
       response.end();
@@ -355,7 +488,7 @@ export function createApp(services: PrimerServices): Express {
 
 export async function createPrimerHttpApp(
   config: PrimerConfig,
-  options: { services?: PrimerServices } = {},
+  options: { services?: PrimerServices; authAdapter?: PrimerAuthAdapter } = {},
 ): Promise<PrimerHttpApp> {
   const database = options.services ? undefined : new PrimerDatabase(config.databasePath);
   const services = options.services ?? new PrimerServices(
@@ -372,7 +505,7 @@ export async function createPrimerHttpApp(
     throw new Error("Fixture validation failed; run primer validate for details.");
   }
 
-  const server = createServer(createApp(services));
+  const server = createServer(createApp(services, options.authAdapter ?? createAuthAdapterFromEnv()));
   attachHmr(server);
 
   return {

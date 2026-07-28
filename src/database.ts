@@ -114,6 +114,7 @@ export class PrimerDatabase {
     for (const table of [
       "source_registrations", "sources", "records", "index_decisions", "traces",
       "evaluation_runs", "sync_runs", "web_sessions",
+      "actor_mappings",
     ]) {
       const row = this.db.prepare(`SELECT COUNT(*) count FROM ${table}`).get() as { count: number };
       counts[table] = row.count;
@@ -138,7 +139,7 @@ export class PrimerDatabase {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
-      INSERT INTO schema_meta (key, value) VALUES ('schema_version', '5')
+      INSERT INTO schema_meta (key, value) VALUES ('schema_version', '6')
         ON CONFLICT(key) DO UPDATE SET value = excluded.value;
 
       CREATE TABLE IF NOT EXISTS groups (
@@ -263,6 +264,13 @@ export class PrimerDatabase {
         updated_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_web_sessions_user ON web_sessions(user_id);
+      CREATE TABLE IF NOT EXISTS actor_mappings (
+        issuer TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (issuer, subject)
+      );
     `);
     this.addColumnIfMissing("sources", "source_family", "TEXT NOT NULL DEFAULT 'markdown'");
     this.addColumnIfMissing("sources", "registration_id", "TEXT");
@@ -277,7 +285,7 @@ export class PrimerDatabase {
     this.db.exec("DROP INDEX IF EXISTS idx_sources_registration_external");
     this.db.exec("CREATE INDEX IF NOT EXISTS idx_sources_registration_external ON sources(registration_id, external_id)");
     this.db
-      .prepare("INSERT INTO schema_meta (key, value) VALUES ('schema_version', '5') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+      .prepare("INSERT INTO schema_meta (key, value) VALUES ('schema_version', '6') ON CONFLICT(key) DO UPDATE SET value = excluded.value")
       .run();
     this.markInterruptedSyncRuns();
     this.db.exec(
@@ -609,6 +617,18 @@ export class PrimerDatabase {
 
   getUser(id: string): FixtureUser | undefined {
     return this.listUsers().find((user) => user.id === id);
+  }
+
+  getActorMapping(issuer: string, subject: string): string | undefined {
+    const row = this.db.prepare("SELECT user_id FROM actor_mappings WHERE issuer = ? AND subject = ?")
+      .get(issuer, subject) as { user_id: string } | undefined;
+    return row?.user_id;
+  }
+
+  saveActorMapping(issuer: string, subject: string, userId: string): void {
+    this.db.prepare(`INSERT INTO actor_mappings (issuer, subject, user_id, created_at)
+      VALUES (?, ?, ?, ?) ON CONFLICT(issuer, subject) DO UPDATE SET user_id = excluded.user_id`)
+      .run(issuer, subject, userId, nowIso());
   }
 
   getSourceVersion(sourceId: string): {

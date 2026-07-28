@@ -19,7 +19,7 @@ npm install
 npm run dev:offline:serve
 ```
 
-Open [http://127.0.0.1:8318](http://127.0.0.1:8318), then:
+Open [http://127.0.0.1:8317](http://127.0.0.1:8317), then:
 
 1. Choose an Acme account.
 2. Open **Content**, register `sample-data/acme/sources/markdown` with `markdown-local`, and synchronize it.
@@ -82,7 +82,7 @@ npm run verify
 
 ## Local API and web application
 
-Run the deterministic server at [http://127.0.0.1:8318](http://127.0.0.1:8318):
+Run the deterministic server at [http://127.0.0.1:8317](http://127.0.0.1:8317):
 
 ```bash
 npm run dev:offline:serve
@@ -90,7 +90,9 @@ npm run dev:offline:serve
 
 `npm run dev` is the same thing with live provider configuration. Both run one process on one port: `primer serve` mounts Vite as middleware, so the browser gets HMR from `web/` and the server restarts on `src/` changes, with no build step in between. `npm start` runs the built server, which serves `dist/web` from that same process.
 
-The current web milestone provides a local identity chooser, HttpOnly session cookie, effective-group editing, source registration and synchronization, streamed grounded chat, citation-linked evidence provenance, full retrieval-stage inspection, and persisted evaluation reports. Chat uses the active session identity rather than accepting a browser-supplied actor ID. Its NDJSON response reports planning, each retrieval pass, fusion, generation, and citation-validation progress; the blinking indicator names the active stage. It then streams only the finalized validated answer and ends with the complete grounded-answer contract. Switching identity or changing effective access clears browser-held conversation state.
+The web app defaults to a standalone fixture-identity chooser and local HttpOnly session. Set `PRIMER_AUTH_PROVIDER=acme-identity` to use the optional plain-HTTP Identity adapter for human cookies and bearer tokens. An authenticated Identity principal is mapped to one existing Primer actor; Identity permissions gate operations (`primer.ask` or `primer.manage`), while the actor's Primer groups continue to gate evidence. Chat never accepts a browser-supplied actor ID. The app also provides source registration and synchronization, streamed grounded chat, citation-linked evidence provenance, retrieval-stage inspection, and persisted evaluation reports.
+
+The local Acme Identity seed includes accounts whose exact emails match the existing human fixture actors. On first authenticated use, Primer records the stable `(issuer, subject) → actor` mapping. Unmapped or ambiguous accounts fail closed for chat and actor-scoped traces. A principal with `primer.manage` may administer actors, sources, synchronization, and evaluation without a knowledge actor; even Identity admin's `*` never bypasses evidence ACLs. Primer remains independently runnable: the adapter defaults to `standalone`, imports no sibling package, and the CLI continues to accept an explicit fixture actor.
 
 The API exposes health and safe configuration plus account, chat, registration, source, synchronization, trace, and evaluation operations. `POST /api/evaluations` can run retrieval or answer suites; the answer suite invokes the configured chat model in live mode.
 
@@ -148,7 +150,7 @@ The content UI intentionally lists only local connectors for now. The API and ap
 
 ## Acme development testbed
 
-Primer is one of six related projects used to exercise an inspectable knowledge-to-development workflow. They remain separate products with separate responsibilities.
+Primer is one of seven related projects used to exercise an inspectable knowledge-to-development workflow. They remain separate products with separate responsibilities.
 
 | Project | Role |
 |---|---|

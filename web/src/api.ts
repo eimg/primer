@@ -8,6 +8,15 @@ export interface User {
 
 export interface Group { id: string; name: string }
 export interface Project { id: string; code: string; name: string; description: string; defaultGroupId: string }
+export interface Principal {
+  id: string;
+  issuer: string;
+  username: string;
+  displayName: string;
+  roles: string[];
+  permissions: string[];
+  kind: "human" | "service" | "development";
+}
 export interface Connector {
   contractVersion: string;
   connectorId: string;
@@ -136,16 +145,20 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     ...options,
     headers: { ...(options.body ? { "content-type": "application/json" } : {}), ...options.headers },
   });
-  const body = await response.json() as T & { error?: { message: string } };
-  if (!response.ok) throw new Error(body.error?.message ?? `Request failed with ${response.status}`);
+  const body = await response.json() as T & { error?: { message?: string } | string };
+  if (!response.ok) {
+    const message = typeof body.error === "string" ? body.error : body.error?.message;
+    throw new Error(message ?? `Request failed with ${response.status}`);
+  }
   return body;
 }
 
 export const api = {
   health: () => request<{ status: string; applicationVersion: string; storageSchemaVersion: number }>("/api/health"),
-  accounts: () => request<{ users: User[]; groups: Group[]; projects: Project[] }>("/api/accounts"),
-  session: () => request<{ user: User }>("/api/session"),
-  signIn: (userId: string) => request<{ user: User }>("/api/session", { method: "POST", body: JSON.stringify({ userId }) }),
+  config: () => request<{ authProvider: "standalone" | "acme-identity" }>("/api/config"),
+  accounts: () => request<{ users: User[]; groups: Group[]; projects: Project[]; canManage: boolean }>("/api/accounts"),
+  session: () => request<{ provider: "standalone" | "acme-identity"; user?: User; principal: Principal; canManage: boolean; canAsk: boolean }>("/api/session"),
+  signIn: (credentials: { userId: string } | { username: string; password: string }) => request("/api/session", { method: "POST", body: JSON.stringify(credentials) }),
   signOut: () => request<{ signedOut: boolean }>("/api/session", { method: "DELETE" }),
   updateGroups: (userId: string, groupIds: string[]) => request<{ user: User }>(`/api/accounts/${encodeURIComponent(userId)}/groups`, {
     method: "PUT",

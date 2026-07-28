@@ -9,6 +9,7 @@ This file is an entrypoint, not the full specification.
 | Project | Local path | Responsibility |
 |---|---|---|
 | Primer | `~/Desktop/acme/primer` | Knowledge product and fictional Acme evidence corpus; outside the Issues → Helix runtime loop. |
+| Acme Identity | `~/Desktop/acme/acme-identity` | Optional suite principal provider; Primer still owns actor mappings and knowledge ACLs. |
 | Prelude | `~/Desktop/acme/prelude` | Project inception drafting; may query Primer over HTTP and export Helix bootstrap artifacts. |
 | Helix | `~/Desktop/acme/helix` | Agent workflow control plane that receives work and orchestrates changes. |
 | Acme Issues | `~/Desktop/acme/acme-issues` | Local issue tracker and webhook harness that triggers Helix and receives callbacks. |
@@ -34,6 +35,7 @@ Intended feature flow for existing repos begins in Acme Projects, which requests
 - Original systems are authoritative; the search index is derived and rebuildable.
 - Different source types retain source-aware processing and provenance.
 - Authorization filtering happens before evidence reaches a model.
+- Suite permissions and knowledge access are separate: Identity gates Primer operations, while a mapped Primer actor and Primer-owned groups gate evidence.
 - Query planning may vary search text only. It cannot choose the actor, groups, project scope, ACL filters, evidence, or answer; every planned query runs against the same pre-authorized population.
 - Retrieval remains inspectable from candidates through final evidence.
 - Generated claims must link to supporting evidence or state uncertainty.
@@ -47,6 +49,7 @@ Intended feature flow for existing repos begins in Acme Projects, which requests
 - Acme Issues remains authoritative for issues, comments, and run lineage. Primer may index it later but does not mutate it.
 - Helix remains responsible for workflow orchestration. Primer may later supply evidence but does not absorb Helix's agent loop.
 - Product direction, planned work, and implemented behavior must be labeled separately.
+- Keep `PRIMER_AUTH_PROVIDER=standalone` as the default. External auth belongs only in the HTTP host through Primer's replaceable plain-HTTP adapter; the CLI remains independently usable with explicit fixture actors.
 
 ## Change discipline
 
@@ -83,6 +86,6 @@ Use `node --import tsx` rather than the `tsx` executable when the environment fo
 
 ## Shared Acme stack
 
-Primer runs the same foundation as Helix, Prelude, Acme Projects, and Acme Issues: Node.js with TypeScript and ESM, Express 5 hosting a React 19/Vite 8 UI, `better-sqlite3` with WAL and foreign keys, and `node:test` through `tsx`. Each project exposes `<name> serve` from its CLI, serves the UI from source under `<NAME>_DEV=1` through Vite middleware, and builds to `dist/web`. Keep `src/app.ts`, `src/webAssets.ts`, `typecheck`, `verify`, and the `83xx` port assignment (Primer is 8318) consistent with those projects; raise stack changes across the set rather than diverging here.
+Primer runs the same foundation as Helix, Prelude, Acme Projects, and Acme Issues: Node.js with TypeScript and ESM, Express 5 hosting a React 19/Vite 8 UI, `better-sqlite3` with WAL and foreign keys, and `node:test` through `tsx`. Each project exposes `<name> serve` from its CLI, serves the UI from source under `<NAME>_DEV=1` through Vite middleware, and builds to `dist/web`. Keep `src/app.ts`, `src/webAssets.ts`, `typecheck`, `verify`, and the `83xx` port assignment (Primer is 8317) consistent with those projects; raise stack changes across the set rather than diverging here.
 
 Primer, Prelude, Acme Projects, and Acme Issues require Node.js 20.19+. Helix requires 22.19+ because the Pi SDK does, so the set has no single floor yet; do not assume Node 22 features here until that is settled across the projects.

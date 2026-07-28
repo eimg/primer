@@ -112,6 +112,10 @@ Stores derived content, lexical fields, vectors, metadata, provenance, ACL attri
 
 Converts the active identity and source ACL attributes into hard retrieval filters. It owns the rule that protected content cannot cross into model context or user-visible post-boundary traces.
 
+The HTTP host has two sequential gates. A Primer-owned auth adapter resolves a standalone session or an external principal and checks product capabilities such as `primer.ask` and `primer.manage`. Management routes may use the authenticated principal without a knowledge actor. End-user chat and actor-scoped traces additionally require the actor resolver to map that principal to an existing Primer actor; the actor's Primer-local groups and each record's `AccessDescriptor` determine retrieval visibility. Suite roles, including Identity admin's `*`, never bypass that retrieval filter.
+
+Current fixture Markdown and Slack records carry canonical ACLs, but their users, groups, and access assignments are local/manual test data. Primer does not yet reconcile membership or revocation from live Slack, email, or other source systems. For a real connector, the source system remains authoritative: the connector must preserve native ACL identity and revision, Primer must map external subjects/groups explicitly, and effective access is the source ACL narrowed by Primer import policy. Manual Primer assignment may support local sources without an authority, but must not broaden authoritative external-source access. Stale or unresolvable source ACL state fails closed. This is a known connector-readiness requirement, not behavior supplied by Acme Identity.
+
 ### Retriever
 
 Runs lexical and semantic searches independently and reports comparable ranks, not falsely normalized truth scores.
@@ -145,14 +149,14 @@ Coordinates explicit use cases such as registering a source, synchronizing conte
 ### Delivery adapters
 
 - The CLI maps arguments, environment, exit status, human output, and stable JSON to application services.
-- The Express HTTP API maps local session-authenticated requests to the same services, serves the production web build, and is independently runnable and integration-tested.
+- The Express HTTP API maps either standalone sessions or an optional external principal through a Primer-owned adapter to the same services, serves the production web build, and is independently runnable and integration-tested.
 - The React UI consumes that API for account/content operations, grounded chat, traces, synchronization detail, and evaluation presentation; it never accesses SQLite directly.
 
-The chat route derives actor identity exclusively from the HttpOnly session. It uses newline-delimited JSON to send immediate workflow status, then answer deltas only after the existing bounded citation-validation/repair workflow has produced its final result, followed by the complete versioned answer object. This preserves the invariant that the stable displayed answer and displayed evidence are the validated application-service output; it intentionally does not expose provisional provider tokens that may later fail citation validation.
+The chat route derives actor identity exclusively from the server-resolved access context (a standalone HttpOnly session or an external cookie/bearer principal mapped to a Primer actor). It uses newline-delimited JSON to send immediate workflow status, then answer deltas only after the existing bounded citation-validation/repair workflow has produced its final result, followed by the complete versioned answer object. This preserves the invariant that the stable displayed answer and displayed evidence are the validated application-service output; it intentionally does not expose provisional provider tokens that may later fail citation validation.
 
 Saved trace lists and detail reads are filtered to the active actor. Evaluation reports remain an explicit local-operator capability and may run model calls when an answer suite is requested.
 
-The local web session is an explicit MVP boundary: choosing a fixture identity creates a random session identifier stored in SQLite and delivered only through an `HttpOnly`, `SameSite=Lax` cookie. It proves identity-dependent product behavior without claiming password authentication, external federation, or production deployment hardening. Safe account discovery and health/configuration are public local endpoints; operational routes require an active session. Provider credentials never enter HTTP responses or the web bundle.
+Standalone mode retains the explicit MVP boundary: choosing a fixture identity creates a random session identifier stored in SQLite and delivered only through an `HttpOnly`, `SameSite=Lax` cookie. Acme Identity mode proxies human session operations and resolves cookies or bearer credentials over plain HTTP without importing Identity code. Safe account discovery is public only in standalone mode; external mode returns the active actor to ordinary users and reserves the full directory and group mutation for `primer.manage`. Provider credentials never enter HTTP responses or the web bundle.
 
 No domain rule should exist only in a command handler, route, or browser component.
 

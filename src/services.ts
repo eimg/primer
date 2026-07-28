@@ -318,6 +318,15 @@ export class PrimerServices {
     return this.database.listUsers();
   }
 
+  getActorMapping(issuer: string, subject: string): string | undefined {
+    return this.database.getActorMapping(issuer, subject);
+  }
+
+  saveActorMapping(issuer: string, subject: string, userId: string): void {
+    this.getUser(userId);
+    this.database.saveActorMapping(issuer, subject, userId);
+  }
+
   listGroups(): Group[] {
     return this.database.listGroups();
   }

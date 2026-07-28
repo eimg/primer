@@ -69,7 +69,7 @@ Usage:
 
 Environment:
   PRIMER_DATA_DIR                 Local state directory (default: ./.primer)
-  PRIMER_PORT                     Port for primer serve (default: 8318)
+  PRIMER_PORT                     Port for primer serve (default: 8317)
   PORT                            Port for primer serve when PRIMER_PORT is unset
   PRIMER_HOST                     Host for primer serve (default: 127.0.0.1)
   PRIMER_FIXTURE_DIR              Acme fixture root (default: ./sample-data/acme)

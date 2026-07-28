@@ -95,7 +95,7 @@ The operator can:
 
 ### 7. Manage local accounts and content in the web application
 
-The web operator can manage local accounts, group/project membership, active sessions, registered content sources, and indexing actions. Account management proves the local authorization model; it does not claim external identity federation. Content management changes Primer's derived representation and source registration, not the authoritative source content.
+The web operator can manage local actors, group/project membership, active sessions, registered content sources, and indexing actions. Primer ships a replaceable HTTP identity adapter that can map an external principal to an existing actor, but Primer still owns the actor mapping and knowledge authorization model. Content management changes Primer's derived representation and source registration, not the authoritative source content.
 
 ## Functional requirements
 
@@ -185,7 +185,7 @@ Helix may later request a bounded initial-context pack using an actor, question,
 - Live Slack, Teams, GitHub, Drive, or OAuth integration in the first release.
 - Source-native or federated exploration for organizational sources in the initial CLI and web milestones.
 - Indexing repository source-code bodies as a Primer knowledge source.
-- External identity federation or full source-permission reconciliation in the first release.
+- Full external identity federation lifecycle or source-permission reconciliation in the first release; the shipped Acme Identity adapter only resolves a suite principal and maps it to a Primer actor.
 - A distributed worker, queue, or search-cluster architecture.
 - Continuous web crawling or autonomous knowledge creation.
 - A general-purpose agent that can mutate source systems.
