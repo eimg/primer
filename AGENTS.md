@@ -4,6 +4,8 @@ Primer has completed Phases 1 through 7, the external-connector readiness gate, 
 
 This file is an entrypoint, not the full specification.
 
+Treat the Acme suite as an executable reference architecture, not a universal platform. Preserve Primer's local operation, focused knowledge ownership, and replaceable source and identity seams; add breadth to prove trustworthy evidence concepts, not to anticipate every organization's knowledge stack.
+
 ## Related projects
 
 | Project | Local path | Responsibility |

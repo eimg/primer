@@ -150,7 +150,9 @@ The content UI intentionally lists only local connectors for now. The API and ap
 
 ## Acme development testbed
 
-Primer is one of seven related projects used to exercise an inspectable knowledge-to-development workflow. They remain separate products with separate responsibilities.
+The Acme suite is an executable reference architecture, not an all-inclusive platform or a universal prescription. Its local-first, independently runnable products and replaceable integration seams let subject-matter experts inspect working patterns and adapt the parts that fit their organization.
+
+Primer is one of the related projects used to exercise an inspectable knowledge-to-development workflow. They remain separate products with separate responsibilities.
 
 | Project | Role |
 |---|---|
