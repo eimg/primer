@@ -16,6 +16,7 @@ Treat the Acme suite as an executable reference architecture, not a universal pl
 | Helix | `~/Desktop/acme/helix` | Agent workflow control plane that receives work and orchestrates changes. |
 | Acme Issues | `~/Desktop/acme/acme-issues` | Local issue tracker and webhook harness that triggers Helix and receives callbacks. |
 | Acme Projects | `~/Desktop/acme/acme-projects` | Feature-idea and collaboration board for existing Helix repos; can manually create non-triggering issues through Acme Issues. |
+| Acme Steering | `~/Desktop/acme/acme-steering` | Optional decision inbox and delegation policy; no direct Primer evidence access in the current slice. |
 | Acme Todo | `~/Desktop/acme/acme-todo` | Disposable target application used for agent implementation and verification. |
 
 Existing-repo runtime flow: Acme Issues → Helix → Acme Todo, followed by a Helix completion callback to Acme Issues. Primer remains outside that path while its CLI and web product are built. Later, Acme Issues may be a read-only authoritative source for Primer, and Helix may consume bounded Primer evidence through a stable query boundary.
@@ -50,6 +51,7 @@ Intended feature flow for existing repos begins in Acme Projects, which requests
 - The current implementation remains index-first. Future source-native discovery is an extension path, not current scope, and may never bypass authorization, normalization, provenance, or evidence construction.
 - Acme Issues remains authoritative for issues, comments, and run lineage. Primer may index it later but does not mutate it.
 - Helix remains responsible for workflow orchestration. Primer may later supply evidence but does not absorb Helix's agent loop.
+- Acme Steering owns delegation and human decisions. Primer does not publish workflow events to it today; any future adapter must authorize before Primer material enters Steering evidence, advisor context, or prompts.
 - Product direction, planned work, and implemented behavior must be labeled separately.
 - Keep `PRIMER_AUTH_PROVIDER=standalone` as the default. External auth belongs only in the HTTP host through Primer's replaceable plain-HTTP adapter; the CLI remains independently usable with explicit fixture actors.
 
