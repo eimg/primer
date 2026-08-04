@@ -162,6 +162,7 @@ Primer is one of the related projects used to exercise an inspectable knowledge-
 | **[Acme Issues](https://github.com/eimg/acme-issues)** | Local issue tracker and webhook harness that triggers Helix and receives callbacks. |
 | **[Acme Projects](https://github.com/eimg/acme-projects)** | Feature-idea and collaboration board for existing Helix repos; can manually create non-triggering issues through Acme Issues. |
 | **[Acme Steering](https://github.com/eimg/acme-steering)** | Optional decision inbox and delegation policy; it does not receive Primer evidence or bypass Primer authorization in the current slice. |
+| **[Acme Intel](https://github.com/eimg/acme-intel)** | Optional think-lab; may later publish reviewed findings into Primer, but does not write Primer today. |
 | **[Acme Todo](https://github.com/eimg/acme-todo)** | Disposable target application used for agent implementation and verification. |
 
 Existing-repo exercise: Acme Issues sends a work item to Helix, and Helix works on Acme Todo. Acme Projects can submit a ready card as a thin, non-triggering implementation issue through Acme Issues, which remains the only companion that triggers Helix for that path. Optional Steering may request Projects submission and Issues triggering through their separate product-owned actions; Issues → Projects lifecycle projection is implemented. Primer remains outside that workflow control path.

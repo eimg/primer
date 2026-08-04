@@ -17,6 +17,7 @@ Treat the Acme suite as an executable reference architecture, not a universal pl
 | Acme Issues | `~/Desktop/acme/acme-issues` | Local issue tracker and webhook harness that triggers Helix and receives callbacks. |
 | Acme Projects | `~/Desktop/acme/acme-projects` | Feature-idea and collaboration board for existing Helix repos; can manually create non-triggering issues through Acme Issues. |
 | Acme Steering | `~/Desktop/acme/acme-steering` | Optional decision inbox and delegation policy; no direct Primer evidence access in the current slice. |
+| Acme Intel | `~/Desktop/acme/acme-intel` | Optional think-lab; may later publish reviewed findings into Primer, but does not write Primer today. |
 | Acme Todo | `~/Desktop/acme/acme-todo` | Disposable target application used for agent implementation and verification. |
 
 Existing-repo runtime flow: Acme Issues → Helix → Acme Todo, followed by a Helix completion callback to Acme Issues. Primer remains outside that path while its CLI and web product are built. Later, Acme Issues may be a read-only authoritative source for Primer, and Helix may consume bounded Primer evidence through a stable query boundary.
